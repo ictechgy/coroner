@@ -1,0 +1,3 @@
+{"app_name":"DemoApp","app_version":"2.0.9","build_version":"141","timestamp":"2026-09-01T10:00:00Z","os_version":"iOS 19.0","deviceModel":"iPhone15,3"}
+
+{"exception":{"type":"EXC_BAD_ACCESS","signal":"SIGSEGV"},"faultingThread":0,"threads":[{"triggered":true,"frames":[{"imageIndex":0,"imageOffset":12336},{"imageIndex":0,"imageOffset":16448}]}],"usedImages":[{"name":"DemoApp","uuid":"11111111-2222-3333-4444-555555555555","base":4294967296,"size":262144}]}
