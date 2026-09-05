@@ -1,5 +1,9 @@
 # coroner
 
+[![CI](https://github.com/ictechgy/coroner/actions/workflows/ci.yml/badge.svg)](https://github.com/ictechgy/coroner/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-macOS%2013%2B-blue)
+
 > Sentry는 크래시를 대시보드에 가둔다. coroner는 부검 보고서를 에이전트 터미널로 가져온다 —
 > "2.1.0의 신규 크래시 1건. `SessionStore.dequeue(sessionStore.swift:88)`의 인덱스 오버런. 2.0.9에서는 0건이었고, 이 빌드에 들어간 커밋은 이것."
 
@@ -123,7 +127,7 @@ Claude Code (`claude_desktop_config.json` / `.mcp.json`):
 
 ```console
 $ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | coroner mcp
-{"id":1,"jsonrpc":"2.0","result":{"capabilities":{"tools":{}},"protocolVersion":"2024-11-05","serverInfo":{"name":"coroner","version":"0.1.0"}}}
+{"id":1,"jsonrpc":"2.0","result":{"capabilities":{"tools":{}},"protocolVersion":"2024-11-05","serverInfo":{"name":"coroner","version":"0.2.0"}}}
 ```
 
 | tool | 설명 |
@@ -226,7 +230,7 @@ internal/**
 ## 로드맵
 
 ```
-v0.2  (Unreleased) 실데이터 코퍼스 4종·신뢰 패치·.coronerignore·CI 게이트·suspect_commit v1
+v0.2  (2026-09-06) 실데이터 코퍼스 6종·신뢰 패치·.coronerignore·CI 게이트·suspect_commit v1·v2·ASC dSYM·jetsam 인식
 v0.3  suspect_commit 고도화 — indexstore-db 프레임→소스 앵커, build→커밋 매핑, MCP 툴화,
       App Store Connect dSYM 자동 다운로드(키 관리 설계 선행)
 v1.x  스택 유사도 클러스터링 옵션(ReBucket식 / GPTrace식 임베딩), macOS 앱 지원,

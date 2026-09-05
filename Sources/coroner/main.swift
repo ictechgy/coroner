@@ -2,7 +2,7 @@ import CoronerCore
 import CryptoKit
 import Foundation
 
-let version = "0.1.0"
+let version = "0.2.0"
 
 let helpText = """
 coroner \(version) — local post-mortem triage for AI agents

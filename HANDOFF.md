@@ -1,8 +1,7 @@
 # HANDOFF — 다음 세션 인수인계
 
 - **작성일**: 2026-09-06 (3차 갱신) · **기준**: main
-- **상태**: v0.1.0 + Unreleased(실데이터 검증 1~3차·신뢰 패치·P2 패치·.coronerignore·CI 게이트·
-  suspect_commit v1·v2·ASC dSYM·jetsam 인식·digest suspects). 미공개(리모트 없음). 테스트 57개 그린, `make demo` 검증됨.
+- **상태**: **v0.2.0 공개 배포됨**(2026-09-06, github.com/ictechgy/coroner). 테스트 57개 그린.
 
 ## 현재까지 완료된 것 (믿어도 되는 상태)
 
@@ -45,10 +44,9 @@ v0.1.0 원본(`44e53aa`~`e32142b`) 위에 이어서:
 3. 아이디어 후보: dSYM UUID→커밋 빌드 태그 연결(suspect 범위 정확화 심화), digest에
    suspects 섹션 포함.
 
-### P2 — 공개 준비 (사용자 승인 gate)
-- 리모트 생성·push → CI 실작동 확인(현 CI yaml은 미실행). Unreleased가 쌓였으니 태그는
-  `v0.2.0` 검토. CHANGELOG Unreleased → 버전 섹션화, main.swift version 갱신.
-- **푸시/공개는 사용자 결정 사항 — 임의 진행 금지.**
+### P2 — 공개 완료 (2026-09-06, 사용자 승인 "배포 ㄱㄱ")
+- v0.2.0: 리모트 ictechgy/coroner 생성·push, CI 실작동 확인, 태그 push 완료.
+- 다음 릴리스(v0.3): CHANGELOG 항목 쌓이면 Unreleased 섹션 재신설 → 같은 체크리스트.
 
 ## 함정·결정 기록 (다시 읽기)
 
