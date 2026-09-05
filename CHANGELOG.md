@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased (0.3 개발)
+
+셀프체크 harness가 실측 루프를 완전 검증하며 새 변형 발견:
+
+- **`.ips` 프리심볼리케이션 `sourceFile`/`sourceLine` 지원** — macOS 크래시 리포터가 캡처
+  시점에 dSYM을 찾으면 프레임에 소스 파일·라인을 직접 실어보냄. 파서가 이를 버려
+  suspect_commit의 소스 앵커가 사라졌던 것을 `make selfcheck`(실제 크래시 e2e)로 발견·수정.
+  앵커는 베이스네임만 사용(절대경로 미유출)
+- **`make selfcheck`** — 의도적 크래셔 빌드(dSYM 포함)→실행→OS 크래시 리포터가 쓴 실제
+  `.ips`→coroner 심볼리케이션→git suspect가 도입 커밋을 지목하는 전체 루프 자가 검증.
+  설치 sanity check로도 사용 가능
+- **`asc-dsym` 라이브(목서버) 검증** — `Examples/asc-mock/`: 로컬 HTTP 목서버로 JWT→요청→
+  응답 파싱→zip 다운로드→압축 해제 전 사슬 PASS. `CORONER_ASC_API_BASE` 환경변수로 엔드포인트
+  오버라이드 추가. `.p8` 파서가 openssl SEC1 2블록 PEM도 지원
+- XCTest 57 → 58개
+
 ## 0.2.0 — 2026-09-06
 
 P0 실데이터 4차 — 로컬 실측 스윕 (589개 실제 `.ips`, 검증만 하고 원본 비커밋):
