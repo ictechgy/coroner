@@ -1,8 +1,8 @@
 # HANDOFF — 다음 세션 인수인계
 
 - **작성일**: 2026-09-05 (2차 갱신) · **기준**: main (커밋은 아래 각 항목 참조)
-- **상태**: v0.1.0 + Unreleased(실데이터 검증 2차·신뢰 패치·P2 패치·.coronerignore·CI 게이트·suspect_commit v1).
-  미공개(리모트 없음). 테스트 50개 그린, `make demo` 검증됨.
+- **상태**: v0.1.0 + Unreleased(실데이터 검증 2차·신뢰 패치·P2 패치·.coronerignore·CI 게이트·suspect_commit v1·v2).
+  미공개(리모트 없음). 테스트 52개 그린, `make demo` 검증됨.
 
 ## 현재까지 완료된 것 (믿어도 되는 상태)
 
@@ -29,13 +29,14 @@ v0.1.0 원본(`44e53aa`~`e32142b`) 위에 이어서:
 3. 변형 발견 → fixture 잠그고 tolerant 파서 확장. 새 fixture는 `Fixtures/real/README.md` 출처 표 갱신.
 
 ### P1 — suspect_commit 고도화 (해자 1의 깊이 파기)
-1. **indexstore-db 연동** — 프레임→소스 앵커를 빌드 인덱스로 정밀화(현재는 atos sourceFile만).
-   외부 의존성 금지와 충돌하므로 `xcrun indexstore-db` CLI 조회(atos·mdfind과 같은 자식
-   프로세스 패턴)로 우회 가능한지 조사부터.
-2. **build→커밋 매핑** — git 태그(`build/241`)·Info.plist 변경 커밋으로 first_seen_build 전후
-   커밋 범위를 정확히. 현재의 ±14일 창은 첫 버전 휴리스틱.
-3. **MCP 툴화** — `suspect_commit` 7번째 툴(기획서 6툴 확장 — 편차 섹션에 기록 필요).
-4. **ASC dSYM 자동 다운로드** — 미구현 상태 유지. 이유: ① 코어 무네트워크 불변식(AGENTS 1조)과
+**v2 완료(2026-09-05)**: ① 빌드 태그 매핑(`build/241`류 태그 → 직전 빌드 태그..first_seen 태그의
+정확한 커밋 범위, 점 버전 태그 거부, 태그 없으면 날짜 창 폴백) ② MCP 7번째 툴 `suspects` 추가
+(README 편차 섹션 기록) ③ indexstore-db는 Xcode 미포함 확인(실측) — atos sourceFile 앵커 유지,
+SourceKit-LSP 번들 탐지 시에만 켜는 후보로 문서화. 실제 임시 git 저장소 e2e 테스트 포함(52 tests).
+남은 것:
+1. **앵커 정밀화 후보** — dSYM DWARF에서 타입 단위 앵커(dwarfdump) 또는 SourceKit-LSP 번들
+   탐지 시 indexstore-db. 착수 전 베네핏 평가부터(현 atos 앵커로 실측 코퍼스에서 충분히 교차됨).
+2. **ASC dSYM 자동 다운로드** — 미구현 상태 유지. 이유: ① 코어 무네트워크 불변식(AGENTS 1조)과
    충돌 — CLI 서브커맨드에서 curl 호출 + ES256 JWT는 CryptoKit로 무의존 서명 가능하나
    ② 실제 ASC 키 없이는 검증 불가. 착수 조건: 사용자가 ASC API 키(CORONER_ASC_KEY_ID/
    ISSUER/KEY_PATH 환경변수 설계안) 제공 시.
@@ -64,3 +65,5 @@ v0.1.0 원본(`44e53aa`~`e32142b`) 위에 이어서:
 - 기획서/차별화 전략: `기획서.md` · 에이전트 작업 지침: `AGENTS.md` · 사용법: `README.md`
 - 포트폴리오 맥락: 형제 프로젝트 `../breadcrumb`(UI↔코드 지도), `../tombstone`(기각 원장) —
   suspect_commit 교차 결과를 tombstone 묘비로 넘기는 상호 판매 구조가 기획서에 명시됨.
+- suspect_commit v2(2026-09-05): 빌드 태그 범위 매핑 + MCP `suspects` 툴 + 실제 git e2e.
+  indexstore-db는 Xcode 미포함(실측)으로 atos 앵커 유지 — 근거는 CHANGELOG Unreleased.

@@ -9,7 +9,7 @@
 
 - **완전 로컬**: 텔레메트리는 내 기기의 부검실(`.coroner/`)에만 존재. 원격 전송 0
 - **결정적**: 파싱·심볼리케이션·클러스터링·저널에 LLM 불요. 같은 입력 → 같은 보고서
-- **에이전트 네이티브**: MCP stdio 서버 6툴 — "2.1.0이 141 대비 새로 생긴 크래시 알려줘"가 한 번의 툴 콜
+- **에이전트 네이티브**: MCP stdio 서버 7툴 — "2.1.0이 141 대비 새로 생긴 크래시 알려줘"가 한 번의 툴 콜
 
 [English](#english) · 기획서: `기획서.md` (설계 배경과 차별화 전략)
 
@@ -130,6 +130,7 @@ $ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | coroner mc
 | `is_known` | `{signature}` — 시그니처/프레임 부분 일치. "UNKNOWN → 새 실패로 취급" |
 | `hang_report` | `{period?}` — 메인스레드 hang 기간별 집계 |
 | `digest` | `{period?}` — 결정적 Markdown 일지 |
+| `suspects` | `{id, repo?, window_days?}` — suspect_commit 추정. 빌드 태그(`build/241`류)가 있으면 정확한 커밋 범위, 없으면 first_seen 날짜 창(기본 14일) 폴백. **추정이지 판결이 아님** |
 
 ## 저널 저장소
 
@@ -204,7 +205,7 @@ internal/**
 ## 기획서 대비 정직한 편차
 
 - **저장 포맷**: 기획서는 YAML — 외부 의존성 0 원칙을 위해 **JSON 직렬화**로 구현 (스키마 동일, 문서화)
-- **MCP 6툴**: 기획서 v0.2 범위 그대로 구현. digest는 LLM 없는 결정적 Markdown만 (기획서 원칙: "결정적 부분에 LLM 불요")
+- **MCP 7툴**: 기획서 6툴 + `suspects`(suspect_commit 추정) 확장. digest는 LLM 없는 결정적 Markdown만 (기획서 원칙: "결정적 부분에 LLM 불요")
 - **`mark` 명령은 추가**: 기획서 CLI 목록에 없지만, `status` 필드(open/known/fixed-in)를 바꾸는 수단이 없으면 트리아지 판정이 저널에 축적되지 않아 루프가 닫히지 않음 — v0.1에서 보강
 - **클러스터링**: 정규화 시그니처 정확 매칭. 유사도 폴백(ReBucket식)은 v1.x — GPTrace(LLM 임베딩)도 그때 인용
 - **`.coronerignore` 구현**: gitignore 하위집합(주석·`trailing /` 디렉터리 패턴·`/` 앵커링·`*`/`?`/`**` 글롭) — 스캔 루트마다 적용, 외부 의존성 없이 직접 구현
@@ -213,7 +214,7 @@ internal/**
   MCP 툴은 미제공(CLI `suspect`만), indexstore-db 연동은 후속
 - **v0.3 미포함**: App Store Connect API dSYM 자동 다운로드 (코어 무네트워크 불변식과 충돌하는
   설계 — 키 관리 설계부터 다시. CI 게이트는 시점 앞당겨 구현 완료)
-- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 50개 테스트 전부 로컬 실행
+- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 52개 테스트 전부 로컬 실행
 - **실데이터 코퍼스**: `Tests/coronerTests/Fixtures/real/` — 공개된 실제 텔레메트리(iOS 16 `.ips`, iOS 14 MetricKit 페이로드)로 포맷 변형을 잠근 회귀 테스트
 
 ## 로드맵
@@ -229,7 +230,7 @@ v1.x  스택 유사도 클러스터링 옵션(ReBucket식 / GPTrace식 임베딩
 ## 개발
 
 ```bash
-make test        # swift test — 50 tests, 전부 로컬(실 dSYM·네트워크 불요), 수 초
+make test        # swift test — 52 tests, 전부 로컬(실 dSYM·네트워크 불요), 수 초
 make release
 ```
 
@@ -237,7 +238,7 @@ make release
 
 ## English
 
-**coroner** is a fully local, deterministic post-mortem triage tool for iOS telemetry. It ingests `.ips` crash reports and MetricKit diagnostic payloads (crash / hang / CPU exception / disk-write), symbolicates them against local dSYMs (search paths + Spotlight, graceful unsymbolicated state), clusters them by normalized top-frame signatures, maintains a version journal (first/last seen build, per-build occurrences, content-fingerprint dedupe), and exposes six MCP tools so coding agents can ask "what's new since build 141?" without ever touching a SaaS dashboard. `new-since` doubles as a CI release gate (exit 1 on new clusters); `suspect <id>` estimates suspect commits by crossing first-seen timing with git history and symbolicated source anchors — estimates, never verdicts. `.coronerignore` excludes paths from ingest. Zero third-party dependencies; Swift 5.9+, macOS 13+. See the Korean sections for the full story — the CLI is self-documenting via `coroner --help`.
+**coroner** is a fully local, deterministic post-mortem triage tool for iOS telemetry. It ingests `.ips` crash reports and MetricKit diagnostic payloads (crash / hang / CPU exception / disk-write), symbolicates them against local dSYMs (search paths + Spotlight, graceful unsymbolicated state), clusters them by normalized top-frame signatures, maintains a version journal (first/last seen build, per-build occurrences, content-fingerprint dedupe), and exposes seven MCP tools so coding agents can ask "what's new since build 141?" without ever touching a SaaS dashboard. `new-since` doubles as a CI release gate (exit 1 on new clusters); `suspect <id>` estimates suspect commits by crossing first-seen timing with git history and symbolicated source anchors — estimates, never verdicts. `.coronerignore` excludes paths from ingest. Zero third-party dependencies; Swift 5.9+, macOS 13+. See the Korean sections for the full story — the CLI is self-documenting via `coroner --help`.
 
 ## License
 

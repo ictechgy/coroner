@@ -1,8 +1,12 @@
 import Foundation
 
-/// Cross-references a cluster's first-seen window with git history
-/// (기획서 §suspect_commit): commits between `firstSeenAt - windowDays` and
-/// `firstSeenAt + 1d` whose changed files match the cluster's source anchors.
+/// Cross-references a cluster's first appearance with git history
+/// (기획서 §suspect_commit). Commit range selection, most precise first:
+///
+/// 1. **build-tag range** — when the repo tags builds (`build/241`, `rel-241`,
+///    bare `241` — trailing digits as their own component), the range is
+///    `previous-build-tag..first_seen-build-tag`.
+/// 2. **date window** — fallback: commits in `[firstSeenAt - windowDays, firstSeenAt + 1d]`.
 ///
 /// The result is an ESTIMATE, not a verdict — "수정 에이전트의 첫 페이지".
 /// Without symbolicated source anchors there is nothing to anchor to, and the
@@ -22,14 +26,23 @@ public struct Suspector {
         let anchors = Set((cluster.sourceAnchors ?? []).map { $0.lowercased() })
         guard !anchors.isEmpty else { return [] }
 
-        let since = first.addingTimeInterval(-Double(windowDays) * 86400)
-        let until = first.addingTimeInterval(86400)
-        let out = runner.run("/usr/bin/git", [
-            "-C", repoPath, "log", "--name-only", "--no-renames",
-            "--since=\(Self.iso.string(from: since))",
-            "--until=\(Self.iso.string(from: until))",
-            "--pretty=format:%H\(recordSep)%s",
-        ])
+        let out: String
+        if let range = buildTagRange(for: cluster.firstSeenBuild) {
+            out = runner.run("/usr/bin/git", [
+                "-C", repoPath, "log", "--name-only", "--no-renames",
+                "\(range.base)..\(range.tip)",
+                "--pretty=format:%H\(recordSep)%s",
+            ])
+        } else {
+            let since = first.addingTimeInterval(-Double(windowDays) * 86400)
+            let until = first.addingTimeInterval(86400)
+            out = runner.run("/usr/bin/git", [
+                "-C", repoPath, "log", "--name-only", "--no-renames",
+                "--since=\(Self.iso.string(from: since))",
+                "--until=\(Self.iso.string(from: until))",
+                "--pretty=format:%H\(recordSep)%s",
+            ])
+        }
 
         var suspects: [SuspectCommit] = []
         var hash: String?, subject: String?
@@ -53,6 +66,29 @@ public struct Suspector {
         }
         flush()
         return Array(suspects.prefix(limit))
+    }
+
+    /// (previous build's tag, first-seen build's tag) when both are taggable;
+    /// nil → caller falls back to the date window.
+    public func buildTagRange(for build: String) -> (base: String, tip: String)? {
+        guard let n = BuildNumber.of(build) else { return nil }
+        let tags = buildTags()
+        let tip = tags.first { $0.build == n }
+        let base = tags.filter { $0.build < n }.max { $0.build < $1.build }
+        guard let t = tip, let b = base else { return nil }
+        return (b.ref, t.ref)
+    }
+
+    /// Tags whose reference ends in a standalone number: `build/241`, `rel-241`,
+    /// `241` — dotted versions like `v1.2.0` are deliberately rejected.
+    public func buildTags() -> [(build: Int, ref: String)] {
+        let out = runner.run("/usr/bin/git", ["-C", repoPath, "tag", "--list"])
+        return out.split(separator: "\n").compactMap { line in
+            let ref = line.trimmingCharacters(in: .whitespaces)
+            guard let m = ref.range(of: #"(?:^|[/\-])([0-9]+)$"#, options: .regularExpression) else { return nil }
+            let digits = ref[m].trimmingCharacters(in: CharacterSet(charactersIn: "/-"))
+            return Int(digits).map { ($0, ref) }
+        }
     }
 
     /// Resolves a repo-ish path to its work-tree root; returns the input on any git failure.

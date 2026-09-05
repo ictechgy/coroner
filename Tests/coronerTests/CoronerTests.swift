@@ -585,6 +585,82 @@ final class CoronerTests: XCTestCase {
 
     // MARK: - suspect_commit (estimate)
 
+    func testBuildTagRangePrefersExactRefsOverDateWindow() {
+        final class ScriptedRunner: ProcessRunning {
+            var logArgs: [String]?
+            func run(_ launchPath: String, _ args: [String]) -> String {
+                if args.contains("tag") {
+                    return "v1.2.0\nbuild/141\nbuild/142\nrel-140"
+                }
+                logArgs = args
+                return ""
+            }
+        }
+        let runner = ScriptedRunner()
+        let s = Suspector(runner: runner, repoPath: "/repo")
+
+        let tags = s.buildTags()
+        XCTAssertEqual(tags.map { $0.build }, [141, 142, 140], "v1.2.0 must be rejected as a version, not a build")
+        XCTAssertEqual(s.buildTagRange(for: "142")?.base, "build/141")
+        XCTAssertEqual(s.buildTagRange(for: "142")?.tip, "build/142")
+        XCTAssertNil(s.buildTagRange(for: "999"), "no tip tag → fall back to the date window")
+        XCTAssertNil(s.buildTagRange(for: "140"), "no earlier tag → no base, fall back")
+
+        var cluster = ClusterReport(id: "c", kind: .crash, signature: "s", topFrames: [],
+                                    firstSeenBuild: "142", lastSeenBuild: "142",
+                                    firstSeenAt: Date(timeIntervalSince1970: 1_700_000_000),
+                                    occurrences: ["142": 1], sourceAnchors: ["A.swift"])
+        _ = s.suspects(for: cluster)
+        XCTAssertTrue(runner.logArgs?.contains("build/141..build/142") ?? false,
+                      "tag range must drive the log query")
+        XCTAssertFalse(runner.logArgs?.contains(where: { $0.hasPrefix("--since") }) ?? true)
+
+        cluster.firstSeenBuild = "999"   // untagged build → date window
+        _ = s.suspects(for: cluster)
+        XCTAssertTrue(runner.logArgs?.contains(where: { $0.hasPrefix("--since") }) ?? false,
+                      "date window is the fallback")
+    }
+
+    func testSuspectorRealGitTagRange() throws {
+        let gitOK = !ProcessRunner().run("/usr/bin/git", ["--version"]).isEmpty
+        guard gitOK else { throw XCTSkip("git not available") }
+        let repo = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("coroner-git-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: repo) }
+        var gitLog = ""
+        func git(_ args: [String]) {
+            // stderr is dropped by the runner; capture the log query for diagnosis
+            let out = ProcessRunner().run("/usr/bin/git", ["-C", repo.path] + args)
+            gitLog += "$ git \(args.joined(separator: " "))\n\(out)\n"
+        }
+        let fm = FileManager.default
+        func commit(_ file: String, msg: String, tag: String? = nil) throws {
+            let f = repo.appendingPathComponent(file)
+            try fm.createDirectory(at: f.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data(msg.utf8).write(to: f)
+            git(["add", file])
+            git(["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", msg])
+            if let tag { git(["tag", tag]) }
+        }
+        // `git -C` chdirs — the directory must exist before init
+        try FileManager.default.createDirectory(at: repo, withIntermediateDirectories: true)
+        git(["init", "--quiet"])
+        try commit("Base.txt", msg: "base", tag: "build/141")
+        try commit("Sources/B.swift", msg: "introduce B bug", tag: "build/142")
+
+        let cluster = ClusterReport(id: "c", kind: .crash, signature: "s", topFrames: [],
+                                    firstSeenBuild: "142", lastSeenBuild: "142",
+                                    firstSeenAt: Date(), occurrences: ["142": 1],
+                                    sourceAnchors: ["B.swift"])
+        let suspects = Suspector(repoPath: repo.path).suspects(for: cluster)
+        guard suspects.count == 1 else {
+            XCTFail("expected exactly the tagged-range commit, got \(suspects)\n\(gitLog)")
+            return
+        }
+        XCTAssertEqual(suspects[0].subject, "introduce B bug")
+        XCTAssertEqual(suspects[0].files, ["Sources/B.swift"])
+    }
+
     func testSuspectorCrossesGitHistoryWithAnchors() {
         let log = [
             "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678\u{1f}Fix session restore",
@@ -674,6 +750,7 @@ final class CoronerTests: XCTestCase {
         XCTAssertTrue(list.contains("is_known"))
         XCTAssertTrue(list.contains("hang_report"))
         XCTAssertTrue(list.contains("digest"))
+        XCTAssertTrue(list.contains("suspects"))
 
         let call = engine.handle(line: #"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"new_since","arguments":{"build":"141"}}}"#)!
         XCTAssertTrue(call.contains("DemoApp"), "new_since must surface the 142 cluster")
@@ -681,6 +758,11 @@ final class CoronerTests: XCTestCase {
 
         let known = engine.handle(line: #"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"is_known","arguments":{"signature":"demoapp+0x1010"}}}"#)!
         XCTAssertTrue(known.contains("KNOWN"))
+
+        // unsymbolicated cluster → honest empty answer (no git involved: no anchors)
+        let id = store.clusters.values.first { $0.firstSeenBuild == "142" }!.id
+        let sus = engine.handle(line: #"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"suspects","arguments":{"id":"\#(id)"}}}"#)!
+        XCTAssertTrue(sus.contains("no suspects"))
 
         let unknown = engine.handle(line: #"{"jsonrpc":"2.0","id":5,"method":"bogus"}"#)!
         XCTAssertTrue(unknown.contains("-32601"))

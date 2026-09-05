@@ -19,7 +19,7 @@ USAGE:
     coroner [--store <dir>] mark <cluster-id> --status open|known|fixed-in
     coroner [--store <dir>] suspect <cluster-id> [--repo <path>] [--window-days 14]
                                    # estimate suspect_commit (git × source anchors)
-    coroner [--store <dir>] mcp        # MCP server over stdio (6 tools)
+    coroner [--store <dir>] mcp        # MCP server over stdio (7 tools)
 
 OPTIONS:
     --store <dir>    journal directory (default: .coroner)

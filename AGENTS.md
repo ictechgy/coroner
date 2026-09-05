@@ -13,7 +13,7 @@ iOS 프로덕션 텔레메트리(`.ips` + MetricKit)를 로컬에서 수집·심
 
 ```bash
 swift build            # 증분 빌드, 수 초
-swift test             # 50개 XCTest — 실 dSYM·네트워크 없이 전부 로컬. 커밋 전 필수
+swift test             # 52개 XCTest — 실 dSYM·네트워크 없이 전부 로컬. 커밋 전 필수
 swift build -c release
 make demo              # /tmp에서 end-to-end 데모 (ingest → new-since → top)
 ```
@@ -36,7 +36,7 @@ Sources/CoronerCore/          라이브러리 타깃 — 모든 로직은 여기
                               .coronerignore(gitignore 하위집합, CoronerIgnore)
   Suspector.swift             suspect_commit 추정 — first_seen 윈도우 git log × 소스 앵커 교차
   Digest.swift                결정적 Markdown 일지 생성
-  MCPEngine.swift             손작성 stdio JSON-RPC 2.0 엔진 + CoronerMCP 6툴 팩토리
+  MCPEngine.swift             손작성 stdio JSON-RPC 2.0 엔진 + CoronerMCP 7툴 팩토리
   Renderer.swift              CLI/MCP 공유 텍스트 렌더링 + 경로 마스킹
 Sources/coroner/main.swift    CLI 엔트리(top-level 코드). 파싱·출력만 — 로직 추가 금지, 코어로
 Tests/coronerTests/           XCTest + Fixtures/(synthetic + real/ — 실측 코퍼스, 출처는 Fixtures/real/README.md)

@@ -136,6 +136,15 @@ public enum CoronerMCP {
                 name: "digest",
                 description: "Deterministic Markdown digest of the journal for a period.",
                 properties: ["period": ["type": "string", "enum": ["today", "week", "all"]]]),
+            MCPEngine.tool(
+                name: "suspects",
+                description: "Estimate suspect commits for a cluster: first-seen build/date crossed with git history and the cluster's source anchors (build tags preferred, date window fallback). Estimates, not verdicts.",
+                properties: [
+                    "id": ["type": "string", "description": "cluster id"],
+                    "repo": ["type": "string", "description": "git repo path (default: cwd)"],
+                    "window_days": ["type": "number", "description": "date-window fallback in days (default 14)"],
+                ],
+                required: ["id"]),
         ]
 
         return MCPEngine(serverName: "coroner", serverVersion: version, tools: tools) { name, args in
@@ -177,6 +186,18 @@ public enum CoronerMCP {
             case "digest":
                 let period = arg("period").flatMap(Store.Period.init(rawValue:)) ?? .all
                 return ok(Digest.markdown(clusters: store.within(period: period), period: period))
+            case "suspects":
+                guard let id = arg("id") else { return err("error: `id` is required") }
+                guard let c = try? store.detail(id: id) else { return err("no record with id \(id)") }
+                let repo = Suspector.resolveRepoRoot(arg("repo") ?? ".")
+                let hits = Suspector(repoPath: repo).suspects(for: c, windowDays: intArg("window_days") ?? 14)
+                guard !hits.isEmpty else {
+                    return ok("no suspects — requires a symbolicated cluster (source anchors) and commits near first_seen")
+                }
+                try? store.setSuspects(id: id, suspects: hits)
+                return ok(hits.map {
+                    "\(String($0.hash.prefix(7)))  \($0.subject)  [matched: \($0.files.joined(separator: ", "))]"
+                }.joined(separator: "\n"))
             default:
                 return err("unknown tool: \(name)")
             }
