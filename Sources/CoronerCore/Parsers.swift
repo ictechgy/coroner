@@ -24,6 +24,11 @@ public struct TelemetryParser {
     }
 
     public func parse(data: Data, sourcePath: String) throws -> [ParsedReport] {
+        // Tolerate a UTF-8 BOM (some editors/exporters add one).
+        var data = data
+        if data.starts(with: [0xEF, 0xBB, 0xBF]) {
+            data = Data(data.dropFirst(3))
+        }
         if let reports = tryParseMetricKit(data: data, sourcePath: sourcePath) {
             return reports
         }
@@ -225,8 +230,10 @@ public struct TelemetryParser {
 
     static func normalizeUUID(_ s: String?) -> String? {
         guard var t = s, !t.isEmpty else { return nil }
-        t = t.replacingOccurrences(of: "-", with: "").uppercased()
-        return t
+        // Hex-only: feeds an mdfind query and dSYM matching, so drop everything
+        // that is not a UUID character rather than merely stripping dashes.
+        t = t.filter { $0.isHexDigit }.uppercased()
+        return t.isEmpty ? nil : t
     }
 
     static func date(any: Any?) -> Date? {

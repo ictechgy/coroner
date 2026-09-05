@@ -25,7 +25,8 @@ public enum FileDiscovery {
             guard let enumerator = fileManager.enumerator(atPath: p) else { continue }
             while let entry = enumerator.nextObject() as? String {
                 let components = entry.split(separator: "/").map(String.init)
-                if components.contains(where: { excludedComponents.contains($0) }) {
+                // Hidden components (dot-prefixed) and known noise never hold telemetry.
+                if components.contains(where: { $0.hasPrefix(".") || excludedComponents.contains($0) }) {
                     enumerator.skipDescendants()
                     continue
                 }

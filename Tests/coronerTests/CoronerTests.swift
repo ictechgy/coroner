@@ -93,6 +93,21 @@ final class CoronerTests: XCTestCase {
         XCTAssertThrowsError(try TelemetryParser().parse(data: Data("not json at all".utf8), sourcePath: "x"))
     }
 
+    func testUTF8BOMIsTolerated() throws {
+        let base = try Data(contentsOf: fixture("crash-new-142.ips"))
+        let bom = Data([0xEF, 0xBB, 0xBF])
+        let reports = try TelemetryParser().parse(data: bom + base, sourcePath: "bom")
+        XCTAssertEqual(reports.count, 1)
+        XCTAssertEqual(reports[0].buildVersion, "142")
+    }
+
+    func testUUIDNormalizationIsHexOnly() {
+        XCTAssertEqual(TelemetryParser.normalizeUUID("ab-cd-ef"), "ABCDEF")
+        XCTAssertEqual(TelemetryParser.normalizeUUID("not-a-uuid!"), "AD", "only hex characters survive")
+        XCTAssertNil(TelemetryParser.normalizeUUID("!!!"))
+        XCTAssertNil(TelemetryParser.normalizeUUID(nil))
+    }
+
     // MARK: - Signature & clustering
 
     func testSignatureUnsymbolicatedUsesBinaryOffset() {
@@ -237,13 +252,14 @@ final class CoronerTests: XCTestCase {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("coroner-disc-\(UUID().uuidString)", isDirectory: true)
         let fm = FileManager.default
-        for rel in ["a.ips", "sub/b.json", "notes.txt", ".coroner/reports/x.json", ".build/y.ips", ".git/z.json"] {
+        for rel in ["a.ips", "sub/b.json", "notes.txt", ".coroner/reports/x.json", ".build/y.ips",
+                    ".git/z.json", "DerivedData/w.ips", ".hidden/v.ips", ".secret.json"] {
             let f = root.appendingPathComponent(rel)
             try fm.createDirectory(at: f.deletingLastPathComponent(), withIntermediateDirectories: true)
             fm.createFile(atPath: f.path, contents: Data("{}".utf8))
         }
         let found = FileDiscovery.telemetryFiles([root.path])
-        XCTAssertEqual(found.count, 2, "only a.ips and sub/b.json")
+        XCTAssertEqual(found.count, 2, "only a.ips and sub/b.json — hidden/excluded dirs skipped")
         XCTAssertTrue(found[0].hasSuffix("a.ips"))
         XCTAssertTrue(found[1].hasSuffix("sub/b.json"))
         // single explicit file passes through
