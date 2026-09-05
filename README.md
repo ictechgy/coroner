@@ -168,7 +168,8 @@ $ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | coroner mc
 ```
 coroner [--store <dir>] [--dsym <path>...]
   ingest <file|dir>...                       # .ips·MetricKit JSON(단일/JSON Lines) 자동 판별, 재귀 수집
-                                             # (.coroner/.git/.build는 자동 제외, .coronerignore 적용)
+                                             # (.coroner/.git/.build는 자동 제외, .coronerignore 적용,
+                                             #  jetsam/메모리 이벤트는 인식 후 "스택 없음"으로 스킵)
   list [--kind crash|hang|cpu|disk] [--limit n]
   show <cluster-id>
   new-since <build>                           # 신규 레코드 있으면 exit 1 (CI 게이트)
@@ -219,7 +220,7 @@ internal/**
 - **ASC dSYM 다운로드 구현됨**(`asc-dsym`): 단 **라이브 API 검증은 실제 ASC 키 확보 전까지
   대기**(JWT 서명·요청 생성·응답 파싱은 단위 테스트로 검증). 네트워크 호출은 코어가 아닌 CLI에만
   존재해 무네트워크 불변식 유지
-- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 56개 테스트 전부 로컬 실행
+- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 57개 테스트 전부 로컬 실행
 - **실데이터 코퍼스**: `Tests/coronerTests/Fixtures/real/` — 공개된 실제 텔레메트리(iOS 16 `.ips`, iOS 14 MetricKit 페이로드)로 포맷 변형을 잠근 회귀 테스트
 
 ## 로드맵
@@ -235,7 +236,7 @@ v1.x  스택 유사도 클러스터링 옵션(ReBucket식 / GPTrace식 임베딩
 ## 개발
 
 ```bash
-make test        # swift test — 56 tests, 전부 로컬(실 dSYM·네트워크 불요), 수 초
+make test        # swift test — 57 tests, 전부 로컬(실 dSYM·네트워크 불요), 수 초
 make release
 ```
 

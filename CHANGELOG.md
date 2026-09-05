@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+P0 실데이터 4차 — 로컬 실측 스윕 (589개 실제 `.ips`, 검증만 하고 원본 비커밋):
+
+- **jetsam/메모리 이벤트 인식** — 실제 JetsamEvent 원본(macOS bug_type 298, iOS는 288)을
+  로컬에서 확보. 스택 없는 이벤트(threads·usedImages·exception 없이 memoryStatus·processes만
+  존재)는 빈 클러스터를 만들지 않고 "인식된 스킵"으로 분류 — ingest 노트에 별도 집계.
+  모양 기반 탐지라 bug_type 번호 차이(iOS/macOS)에 무관. synthetic fixture로 잠금
+- **빈 파일 스킵 노트** 분리 — 0바이트 `.ips`를 "인식 불가"와 구분
+- 로컬 코퍼스 검증 결과: 508개 파싱 대상 중 486개 성공(95.7%), 나머지는 jetsam 9·훼손된
+  tar.gz명 파일 12·빈 파일 — 전부 의도된 동작. 60건 표본 full ingest(심볼리케이션 포함) 0.5초
+- **digest에 suspect_commit 섹션** — 추정 라벨과 함께 표시(추정 없으면 섹션 숨김)
+- XCTest 56 → 57개
+
 P0 실데이터 3차 + ASC dSYM:
 
 - **macOS `.ips` 지원 검증** — 실측 macOS 12 크래시(xsscx/srd)에서 `app_version`·

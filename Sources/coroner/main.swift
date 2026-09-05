@@ -119,6 +119,8 @@ func ingest(_ args: [String]) {
     var unsymbolicated = 0
     var parseFailures = 0
     var alreadyIngested = 0
+    var jetsamEvents = 0
+    var emptyFiles = 0
 
     for f in files {
         let contents: Data
@@ -129,27 +131,34 @@ func ingest(_ args: [String]) {
             print("skip (unreadable): \(masked(f))")
             continue
         }
+        if contents.isEmpty {
+            emptyFiles += 1
+            continue
+        }
         let fingerprint = Store.fingerprint(contents)
         if store.hasSeen(fingerprint) {
             alreadyIngested += 1
             continue
         }
-        guard let reports = try? parser.parse(data: contents, sourcePath: f) else {
+        do {
+            let reports = try parser.parse(data: contents, sourcePath: f)
+            guard !reports.isEmpty else { continue }
+            for var report in reports {
+                report = symbolicator.symbolicate(report: report)
+                let existed = store.clusterID(forSignature: Signature.of(frames: report.frames)) != nil
+                let cluster = store.ingest(report)
+                reportCount += 1
+                byKind[report.kind, default: 0] += 1
+                if existed { updatedClusters += 1 } else { newClusters += 1 }
+                if !cluster.symbolicated { unsymbolicated += 1 }
+            }
+            store.markSeen(fingerprint)
+        } catch ParseError.jetsamEvent {
+            jetsamEvents += 1
+        } catch {
             parseFailures += 1
             print("skip (unrecognized): \(masked(f))")
-            continue
         }
-        guard !reports.isEmpty else { continue }
-        for var report in reports {
-            report = symbolicator.symbolicate(report: report)
-            let existed = store.clusterID(forSignature: Signature.of(frames: report.frames)) != nil
-            let cluster = store.ingest(report)
-            reportCount += 1
-            byKind[report.kind, default: 0] += 1
-            if existed { updatedClusters += 1 } else { newClusters += 1 }
-            if !cluster.symbolicated { unsymbolicated += 1 }
-        }
-        store.markSeen(fingerprint)
     }
 
     let kinds = DiagnosticKind.allCases.compactMap { k -> String? in
@@ -161,6 +170,8 @@ func ingest(_ args: [String]) {
         print("note: \(unsymbolicated) report(s) stayed unsymbolicated (dSYM not found — pass --dsym or install via Spotlight)")
     }
     if alreadyIngested > 0 { print("note: \(alreadyIngested) file(s) skipped — identical content already in the journal") }
+    if jetsamEvents > 0 { print("note: \(jetsamEvents) jetsam/memory event(s) skipped — no stack to autopsy") }
+    if emptyFiles > 0 { print("note: \(emptyFiles) empty file(s) skipped") }
     if parseFailures > 0 { print("note: \(parseFailures) unrecognizable file(s)") }
 }
 

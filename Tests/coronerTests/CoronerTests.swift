@@ -189,6 +189,25 @@ final class CoronerTests: XCTestCase {
         XCTAssertThrowsError(try TelemetryParser().parse(data: Data("not json at all".utf8), sourcePath: "x"))
     }
 
+    func testJetsamEventIsRecognizedNotParsed() throws {
+        // Synthetic clone of the real local JetsamEvent shape (macOS bug_type 298,
+        // iOS uses 288): memory-pressure tables, NO threads/usedImages/exception.
+        // Correct behavior = recognized skip, never a fake empty cluster.
+        let jetsam = """
+        {"bug_type":"298","timestamp":"2026-09-03 00:05:22.00 +0000","os_version":"macOS 15.6 (build)"}
+        {"bug_type":"298","largestProcess":"WindowServer","memoryStatus":{"compressor":1},"processes":[{"pid":1}]}
+        """
+        XCTAssertThrowsError(try TelemetryParser().parse(data: Data(jetsam.utf8), sourcePath: "j.ips")) { e in
+            guard case ParseError.jetsamEvent = e else {
+                return XCTFail("expected jetsamEvent, got \(e)")
+            }
+        }
+        XCTAssertTrue(TelemetryParser.looksLikeJetsamEvent(data: Data(jetsam.utf8)))
+        // and a normal crash is NOT jetsam
+        let crash = try Data(contentsOf: fixture("crash-new-142.ips"))
+        XCTAssertFalse(TelemetryParser.looksLikeJetsamEvent(data: crash))
+    }
+
     func testUTF8BOMIsTolerated() throws {
         let base = try Data(contentsOf: fixture("crash-new-142.ips"))
         let bom = Data([0xEF, 0xBB, 0xBF])
@@ -914,6 +933,15 @@ final class CoronerTests: XCTestCase {
         XCTAssertTrue(md.contains("# coroner"))
         XCTAssertTrue(md.contains("| id | kind | signature | first | last | total | builds | status |"))
         XCTAssertTrue(md.contains("DemoApp+0x1010"))
+        XCTAssertFalse(md.contains("suspect_commit"), "no estimates yet — section stays hidden")
+        // with an estimate recorded, the digest surfaces it — labeled as an estimate
+        let id = store.clusters.values.first!.id
+        _ = try! store.setSuspects(id: id, suspects: [
+            SuspectCommit(hash: "abcdef1234567890", subject: "Fix thing", files: ["Sources/A.swift"]),
+        ])
+        let md2 = Digest.markdown(clusters: store.all(), period: .all)
+        XCTAssertTrue(md2.contains("suspect_commit 추정"))
+        XCTAssertTrue(md2.contains("`abcdef1` Fix thing"))
     }
 
     func testDigestWritesFile() throws {

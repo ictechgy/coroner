@@ -28,6 +28,18 @@ public enum Digest {
             let builds = c.occurrences.keys.sorted().joined(separator: ",")
             lines.append("| \(c.id) | \(c.kind.displayName) | `\(sig)` | \(Self.day.string(from: c.firstSeenAt ?? generatedAt)) | \(Self.day.string(from: c.lastSeenAt ?? generatedAt)) | \(c.totalOccurrences) | \(builds) | \(c.status) |")
         }
+        // suspect_commit estimates (기획서: 추정임을 명시)
+        let withSuspects = clusters.filter { !($0.suspects ?? []).isEmpty }
+            .sorted { $0.totalOccurrences > $1.totalOccurrences }
+        if !withSuspects.isEmpty {
+            lines.append("")
+            lines.append("## suspect_commit 추정 (판결이 아닌 추정)")
+            for c in withSuspects {
+                for s in c.suspects ?? [] {
+                    lines.append("- \(c.id): `\(String(s.hash.prefix(7)))` \(s.subject) [matched: \(s.files.joined(separator: ", "))]")
+                }
+            }
+        }
         return lines.joined(separator: "\n") + "\n"
     }
 

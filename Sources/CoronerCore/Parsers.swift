@@ -2,11 +2,16 @@ import Foundation
 
 public enum ParseError: Error, CustomStringConvertible {
     case unrecognizedFormat(String)
+    /// Recognized shape (jetsam/OOM memory event) with no stack to autopsy —
+    /// not a failure, but not a crash report either.
+    case jetsamEvent(String)
 
     public var description: String {
         switch self {
         case .unrecognizedFormat(let path):
             return "unrecognized telemetry format: \(path)"
+        case .jetsamEvent(let path):
+            return "jetsam/memory event (no stack to autopsy): \(path)"
         }
     }
 }
@@ -34,6 +39,9 @@ public struct TelemetryParser {
         }
         if let report = tryParseIPS(data: data, sourcePath: sourcePath) {
             return [report]
+        }
+        if Self.looksLikeJetsamEvent(data: data) {
+            throw ParseError.jetsamEvent(sourcePath)
         }
         throw ParseError.unrecognizedFormat(sourcePath)
     }
@@ -275,6 +283,17 @@ public struct TelemetryParser {
     static func nonEmpty(_ s: String?) -> String? {
         guard let s, !s.isEmpty else { return nil }
         return s
+    }
+
+    /// Jetsam/OOM events (.ips files named JetsamEvent-*): body carries memory
+    /// pressure tables (processes/memoryStatus/largestProcess) and NO threads,
+    /// usedImages or exception — detected by shape, not bug_type, which differs
+    /// between iOS (288) and macOS (298).
+    static func looksLikeJetsamEvent(data: Data) -> Bool {
+        guard let text = String(data: data, encoding: .utf8),
+              let firstNL = text.firstIndex(of: "\n"),
+              let obj = (try? JSONSerialization.jsonObject(with: Data(text[firstNL...].utf8))) as? [String: Any] else { return false }
+        return obj["memoryStatus"] != nil && obj["processes"] != nil
     }
 
     static func normalizeUUID(_ s: String?) -> String? {

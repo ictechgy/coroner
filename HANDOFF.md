@@ -2,7 +2,7 @@
 
 - **작성일**: 2026-09-06 (3차 갱신) · **기준**: main
 - **상태**: v0.1.0 + Unreleased(실데이터 검증 1~3차·신뢰 패치·P2 패치·.coronerignore·CI 게이트·
-  suspect_commit v1·v2·ASC dSYM). 미공개(리모트 없음). 테스트 56개 그린, `make demo` 검증됨.
+  suspect_commit v1·v2·ASC dSYM·jetsam 인식·digest suspects). 미공개(리모트 없음). 테스트 57개 그린, `make demo` 검증됨.
 
 ## 현재까지 완료된 것 (믿어도 되는 상태)
 
@@ -28,11 +28,14 @@ v0.1.0 원본(`44e53aa`~`e32142b`) 위에 이어서:
 ## 다음 세션 할 일 (우선순위)
 
 ### P0 — 실데이터 검증 (계속 — 외부 입력 필요)
+**4차 완료(2026-09-06)**: 로컬 실측 스윕 — `~/Library/Logs/DiagnosticReports`·
+`/Library/Logs/DiagnosticReports`의 실제 `.ips` 589개(원본 비커밋, 검증만). 486개 파싱
+성공(95.7%), jetsam 원본 확보·"인식된 스킵" 처리 구현(CHANGELOG 참조), 훼손 파일은 정확히
+거부. `MobileDevice/`는 비어 있었고 로컬에 사용자 앱 크래시는 없었음(전부 시스템 데몬).
+남은 것:
 1. **자기 앱 실측** — `MXMetricManager` 전달자로 하루 수집 + TestFlight `.ips`(Organizer
-   Export·`xcrun devicectl`). 공개 코퍼스로 가능한 분은 소진; 이제 실사용자 데이터가 최고 가치.
-2. **jetsam(`bug_type` 288) 원본 확보** — 알려진 변형(threads 없는 body)이나 공개 샘플 미확보.
-   확보 시 파서 guard(threads/usedImages/exception 필요)가 거부하는지 확인 후 tolerant 확장.
-3. 변형 발견 → fixture 잠그고 파서 확장 + `Fixtures/real/README.md` 출처 표 갱신.
+   Export·`xcrun devicectl`). 실사용자 데이터가 최고 가치.
+2. 변형 발견 → fixture 잠그고 파서 확장 + `Fixtures/real/README.md` 출처 표 갱신.
 
 ### P1 — suspect_commit 고도화 (해자 1의 깊이 파기)
 1. **라이브 ASC 검증** — 사용자가 ASC API 키 제공 시 `asc-dsym` 실동작 확인(환경변수 3종,
@@ -52,7 +55,7 @@ v0.1.0 원본(`44e53aa`~`e32142b`) 위에 이어서:
 - 저장 포맷 JSON(기획서 YAML) — 의존성 0 의도된 편차. 저널 스키마는 호환 인터페이스 —
   필드 추가는 가산적으로만(sourceAnchors·suspects가 그 예).
 - `Fixtures/real/`에는 공개 게시물 실측만 — 비공개 유저 텔레메트리 금지(AGENTS 6조).
-- 테스트 수 바꾸면 README·AGENTS "56" 표기 3곳 동시 갱신.
+- 테스트 수 바꾸면 README·AGENTS "57" 표기 3곳 동시 갱신.
 - 스텁 러너가 외부 CLI 계약(mdfind 대시·git 인자)을 가릴 수 있음 — 계약 테스트 패턴을
   새 외부 연동마다 추가할 것(testSpotlightQueryUsesDashedUUID·testBuildTagRange… 참조).
 - 전역 플래그(`--store` 등)는 명령 앞. `new-since` exit 1은 CI 게이트 정상 동작.
