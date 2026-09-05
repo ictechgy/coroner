@@ -43,7 +43,8 @@ v0.1.0 원본(`44e53aa`~`e32142b`) 위에 이어서:
 ### P2 — 공개 준비 (사용자 승인 gate)
 - 리모트 생성·push → CI 실작동 확인(현 CI yaml은 미실행). 태그 `v0.1.0`…단 Unreleased가
   쌓였으니 버전 올려 `v0.2.0` 검토. CHANGELOG Unreleased → 버전 섹션화, main.swift version 갱신.
-- README Quickstart 트랜스크립트가 `suspect`/CI 게이트를 반영하도록 실출력으로 갱신(아직 미반영).
+- README Quickstart 트랜스크립트는 2026-09-05 실출력으로 갱신 완료(재수집 노트·게이트 exit
+  코드·suspect 정직 빈답 포함) — 릴리스 시점에 다시 실출력 갱신.
 - **푸시/공개는 사용자 결정 사항 — 임의 진행 금지.**
 
 ## 함정·결정 기록 (다시 읽기)

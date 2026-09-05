@@ -42,12 +42,20 @@ ingested 6 file(s) → 8 report(s) [4 crash, 2 hang, 1 cpu-exception, 1 disk-wri
 journal: 5 new, 3 updated cluster(s) → 5 total
 note: 8 report(s) stayed unsymbolicated (dSYM not found — pass --dsym or install via Spotlight)
 
-$ coroner new-since 141
+$ coroner ingest Examples/demo/*   # 재실행 — 지문 장부(seen.json)로 이중 카운트 없음
+note: 6 file(s) skipped — identical content already in the journal
+
+$ coroner new-since 141; echo "exit=$?"
 NEW since build 141: 4 cluster(s)
 c-20260904-967cb4b5  [crash]  2026-09-04→2026-09-05  3x  DemoApp+0x1010 → DemoApp+0x2020 → libsystem_c.dylib+0x1000
 c-20260905-511a61d2  [hang]   2026-09-05→2026-09-05  2x  DemoApp+0x800 → DemoApp+0x1010
 c-20260905-f9a50921  [cpu-exception]  2026-09-05→2026-09-05  1x  DemoApp+0x2000
 c-20260905-0164a025  [disk-write]  2026-09-05→2026-09-05  1x  DemoApp+0x3000
+exit=1                                    # CI 게이트: 신규 크래시 → 릴리스 실패
+
+$ coroner suspect c-20260904-967cb4b5
+no suspects — requires a symbolicated cluster (source anchors) and commits near first_seen
+                                          # unsymbolicated면 정직하게 빈 답 (아래 심볼리케이션 참조)
 
 $ coroner is-known "DemoApp+0x1010"
 KNOWN — 2 matching cluster(s):
@@ -211,8 +219,9 @@ internal/**
 ## 로드맵
 
 ```
-v0.3  suspect_commit — first_seen 빌드 전후 git diff 교차 + indexstore-db 프레임→소스 앵커
-      App Store Connect dSYM 자동 다운로드 (CI 게이트·.coronerignore는 시점 앞당겨 구현 완료)
+v0.2  (Unreleased) 실데이터 코퍼스 4종·신뢰 패치·.coronerignore·CI 게이트·suspect_commit v1
+v0.3  suspect_commit 고도화 — indexstore-db 프레임→소스 앵커, build→커밋 매핑, MCP 툴화,
+      App Store Connect dSYM 자동 다운로드(키 관리 설계 선행)
 v1.x  스택 유사도 클러스터링 옵션(ReBucket식 / GPTrace식 임베딩), macOS 앱 지원,
       SaaS 역링크 내보내기(= Sentry 이슈 URL 부착), Android tombstone(네이티브 크래시 덤프) 지원
 ```
@@ -228,7 +237,7 @@ make release
 
 ## English
 
-**coroner** is a fully local, deterministic post-mortem triage tool for iOS telemetry. It ingests `.ips` crash reports and MetricKit diagnostic payloads (crash / hang / CPU exception / disk-write), symbolicates them against local dSYMs (search paths + Spotlight, graceful unsymbolicated state), clusters them by normalized top-frame signatures, maintains a version journal (first/last seen build, per-build occurrences), and exposes six MCP tools so coding agents can ask "what's new since build 141?" without ever touching a SaaS dashboard. Zero third-party dependencies; Swift 5.9+, macOS 13+. See the Korean sections for the full story — the CLI is self-documenting via `coroner --help`.
+**coroner** is a fully local, deterministic post-mortem triage tool for iOS telemetry. It ingests `.ips` crash reports and MetricKit diagnostic payloads (crash / hang / CPU exception / disk-write), symbolicates them against local dSYMs (search paths + Spotlight, graceful unsymbolicated state), clusters them by normalized top-frame signatures, maintains a version journal (first/last seen build, per-build occurrences, content-fingerprint dedupe), and exposes six MCP tools so coding agents can ask "what's new since build 141?" without ever touching a SaaS dashboard. `new-since` doubles as a CI release gate (exit 1 on new clusters); `suspect <id>` estimates suspect commits by crossing first-seen timing with git history and symbolicated source anchors — estimates, never verdicts. `.coronerignore` excludes paths from ingest. Zero third-party dependencies; Swift 5.9+, macOS 13+. See the Korean sections for the full story — the CLI is self-documenting via `coroner --help`.
 
 ## License
 
