@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+P1 기능 (기획서 v0.3에서 시점 앞당김):
+
+- **CI 게이트** — `new-since`가 신규 클러스터를 발견하면 exit 1 (빈이면 0). 릴리스
+  파이프라인에 `new-since <last-released-build>`로 심는다. README에 GitHub Actions 예제
+- **suspect_commit v1 (해자 기능 조기 구현)** — `coroner suspect <id>`: first_seen
+  시점 ±윈도우(기본 14일)의 git 커밋 중 클러스터의 소스 앵커(심볼리케이션 sourceFile
+  베이스네임)와 변경 파일이 교차하는 커밋을 추정으로 기록. `sourceAnchors`·`suspects`
+  필드 추가(가산적 — 기존 저널 호환). unsymbolicated면 정직하게 빈 답. "추정이지 판결이
+  아님"을 출력에 명시
+- XCTest 47 → 50개
+
 리뷰 P2 패치 배치:
 
 - **후행 전역 플래그 거부** — `coroner ingest . --store X`가 플래그를 조용히 삼켜 기본

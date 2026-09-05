@@ -20,7 +20,8 @@ install: release
 demo: release
 	@rm -rf /tmp/coroner-demo && mkdir -p /tmp/coroner-demo
 	@cd /tmp/coroner-demo && $(CURDIR)/$(BIN) ingest $(CURDIR)/Examples/demo/* && \
-		$(CURDIR)/$(BIN) new-since 141 && $(CURDIR)/$(BIN) top 3
+		($(CURDIR)/$(BIN) new-since 141; echo "exit=$$? (1 = gate would block this release)") && \
+		$(CURDIR)/$(BIN) top 3
 
 clean:
 	$(SWIFTC) package clean

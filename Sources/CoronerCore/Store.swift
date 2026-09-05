@@ -126,10 +126,15 @@ public final class Store {
         let build = report.buildVersion ?? "unknown"
         let date = report.timestamp ?? Date()
         let symbolicated = report.frames.contains { $0.symbol != nil }
+        let anchors = Array(Set(report.frames.prefix(8).compactMap { $0.sourceFile }
+            .map { ($0 as NSString).lastPathComponent })).sorted()
 
         var c: ClusterReport
         if var existing = first {
             existing.occurrences[build, default: 0] += 1
+            if !anchors.isEmpty {
+                existing.sourceAnchors = Array(Set((existing.sourceAnchors ?? []) + anchors)).sorted()
+            }
             let shouldBumpBuild = existing.lastSeenBuild == "unknown"
                 || BuildNumber.isNewerOrEqual(build, than: existing.lastSeenBuild)
             if shouldBumpBuild {
@@ -170,7 +175,8 @@ public final class Store {
                 devices: devices,
                 osVersions: oses,
                 status: "open",
-                symbolicated: symbolicated
+                symbolicated: symbolicated,
+                sourceAnchors: anchors.isEmpty ? nil : anchors
             )
         }
         save(c)
@@ -212,6 +218,15 @@ public final class Store {
         }
         var c = try detail(id: id)
         c.status = status
+        save(c)
+        return c
+    }
+
+    /// Records the suspect_commit estimate (기획서: 추정임을 명시 — overwrite per run).
+    @discardableResult
+    public func setSuspects(id: String, suspects: [SuspectCommit]) throws -> ClusterReport {
+        var c = try detail(id: id)
+        c.suspects = suspects
         save(c)
         return c
     }

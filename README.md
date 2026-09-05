@@ -155,16 +155,42 @@ $ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | coroner mc
 ```
 coroner [--store <dir>] [--dsym <path>...]
   ingest <file|dir>...                       # .ips·MetricKit JSON(단일/JSON Lines) 자동 판별, 재귀 수집
-                                             # (.coroner/.git/.build는 자동 제외)
+                                             # (.coroner/.git/.build는 자동 제외, .coronerignore 적용)
   list [--kind crash|hang|cpu|disk] [--limit n]
   show <cluster-id>
-  new-since <build>
-  top [n]
+  new-since <build>                           # 신규 레코드 있으면 exit 1 (CI 게이트)
+  top [n] [--kind crash|hang|cpu|disk]
   is-known "<signature substring>"
-  hang-report [--period today|week|all]
-  digest [--period today|week|all]           # 기간 내 last_seen 클러스터만
+  hang-report [--period today|week|all]       # today/week는 "최근 24시간/7일" 창
+  digest [--period today|week|all]            # 기간 내 last_seen 클러스터만
   mark <cluster-id> --status open|known|fixed-in   # 트리아지 판정 기록 (저널 루프 닫기)
-  mcp                                        # MCP stdio 서버
+  suspect <cluster-id> [--repo <path>] [--window-days 14]   # suspect_commit 추정 (v0.3 조기 구현)
+  mcp                                         # MCP stdio 서버
+```
+
+### 수집 제외 — `.coronerignore`
+
+스캔 루트에 두면 ingest 디렉터리 탐색에 적용된다 (gitignore 하위집합 — 주석 `#`,
+트레일링 `/` 디렉터리 패턴, `/` 포함 시 루트 앵커링, `*`/`?`는 `/`를 넘지 않고 `**`는 넘는다):
+
+```
+# .coronerignore
+*.tmp.ips
+vendor/
+internal/**
+```
+
+### CI 게이트 — 새 크래시가 있으면 릴리스 실패
+
+`new-since`는 신규 클러스터가 존재하면 exit 1을 반환한다. 마지막 릴리스 빌드 번호를
+베이스라인으로 잡아 파이프라인에 심는다:
+
+```yaml
+# .github/workflows/release-gate.yml
+- name: Block release on new crashes
+  run: |
+    coroner --store .coroner ingest telemetry/   # Organizer/MetricKit 원본 동기화
+    coroner --store .coroner new-since "${LAST_RELEASED_BUILD}"
 ```
 
 ## 기획서 대비 정직한 편차
@@ -173,16 +199,20 @@ coroner [--store <dir>] [--dsym <path>...]
 - **MCP 6툴**: 기획서 v0.2 범위 그대로 구현. digest는 LLM 없는 결정적 Markdown만 (기획서 원칙: "결정적 부분에 LLM 불요")
 - **`mark` 명령은 추가**: 기획서 CLI 목록에 없지만, `status` 필드(open/known/fixed-in)를 바꾸는 수단이 없으면 트리아지 판정이 저널에 축적되지 않아 루프가 닫히지 않음 — v0.1에서 보강
 - **클러스터링**: 정규화 시그니처 정확 매칭. 유사도 폴백(ReBucket식)은 v1.x — GPTrace(LLM 임베딩)도 그때 인용
-- **`.coronerignore` 미구현**: 기획서 v0.2 옵션(수집 제외 패턴). 현재는 내장 제외(`.coroner`/`.git`/`.build`/숨김 디렉터리)만 — v0.3 계획
-- **v0.3 미포함**: App Store Connect API dSYM 자동 다운로드, git diff와의 suspect_commit 교차, CI 게이트
-- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 47개 테스트 전부 로컬 실행
+- **`.coronerignore` 구현**: gitignore 하위집합(주석·`trailing /` 디렉터리 패턴·`/` 앵커링·`*`/`?`/`**` 글롭) — 스캔 루트마다 적용, 외부 의존성 없이 직접 구현
+- **suspect_commit v0.3 조기 구현**: 기획서는 indexstore-db 프레임→소스 앵커를 예상했으나 1차는
+  심볼리케이션의 `sourceFile`(atos)을 앵커로 사용 — unsymbolicated 클러스터는 정직하게 빈 답.
+  MCP 툴은 미제공(CLI `suspect`만), indexstore-db 연동은 후속
+- **v0.3 미포함**: App Store Connect API dSYM 자동 다운로드 (코어 무네트워크 불변식과 충돌하는
+  설계 — 키 관리 설계부터 다시. CI 게이트는 시점 앞당겨 구현 완료)
+- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 50개 테스트 전부 로컬 실행
 - **실데이터 코퍼스**: `Tests/coronerTests/Fixtures/real/` — 공개된 실제 텔레메트리(iOS 16 `.ips`, iOS 14 MetricKit 페이로드)로 포맷 변형을 잠근 회귀 테스트
 
 ## 로드맵
 
 ```
 v0.3  suspect_commit — first_seen 빌드 전후 git diff 교차 + indexstore-db 프레임→소스 앵커
-      App Store Connect dSYM 자동 다운로드, CI 게이트(빌드마다 new_since 차단), .coronerignore
+      App Store Connect dSYM 자동 다운로드 (CI 게이트·.coronerignore는 시점 앞당겨 구현 완료)
 v1.x  스택 유사도 클러스터링 옵션(ReBucket식 / GPTrace식 임베딩), macOS 앱 지원,
       SaaS 역링크 내보내기(= Sentry 이슈 URL 부착), Android tombstone(네이티브 크래시 덤프) 지원
 ```
@@ -190,7 +220,7 @@ v1.x  스택 유사도 클러스터링 옵션(ReBucket식 / GPTrace식 임베딩
 ## 개발
 
 ```bash
-make test        # swift test — 47 tests, 전부 로컬(실 dSYM·네트워크 불요), 수 초
+make test        # swift test — 50 tests, 전부 로컬(실 dSYM·네트워크 불요), 수 초
 make release
 ```
 

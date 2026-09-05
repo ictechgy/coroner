@@ -101,6 +101,21 @@ public struct ParsedReport: Sendable {
     }
 }
 
+/// A git commit that plausibly introduced a cluster — an ESTIMATE produced by
+/// crossing first-seen timing with changed files (기획서: "suspect_commit은 추정").
+public struct SuspectCommit: Codable, Equatable, Sendable {
+    public var hash: String
+    public var subject: String
+    /// Changed files whose basename matched one of the cluster's source anchors.
+    public var files: [String]
+
+    public init(hash: String, subject: String, files: [String]) {
+        self.hash = hash
+        self.subject = subject
+        self.files = files
+    }
+}
+
 /// Persisted post-mortem record — one file per cluster (기획서 §데이터 모델).
 public struct ClusterReport: Codable, Equatable, Sendable {
     public var id: String
@@ -118,6 +133,12 @@ public struct ClusterReport: Codable, Equatable, Sendable {
     public var osVersions: [String: Int]
     public var status: String   // open | known | fixed-in
     public var symbolicated: Bool
+    /// Basenames of the top frames' source files (symbolicated ingest only) —
+    /// the anchor set suspect_commit cross-references with git history.
+    public var sourceAnchors: [String]?
+    /// Estimate only; nil until `coroner suspect <id>` runs. Additive field —
+    /// journals written before it decode with nil.
+    public var suspects: [SuspectCommit]?
 
     public init(id: String, kind: DiagnosticKind, signature: String, topFrames: [String],
                 exceptionSummary: String? = nil, appVersion: String? = nil,
@@ -125,7 +146,8 @@ public struct ClusterReport: Codable, Equatable, Sendable {
                 firstSeenAt: Date? = nil, lastSeenAt: Date? = nil,
                 occurrences: [String: Int], devices: [String: Int] = [:],
                 osVersions: [String: Int] = [:], status: String = "open",
-                symbolicated: Bool = false) {
+                symbolicated: Bool = false,
+                sourceAnchors: [String]? = nil, suspects: [SuspectCommit]? = nil) {
         self.id = id
         self.kind = kind
         self.signature = signature
@@ -141,6 +163,8 @@ public struct ClusterReport: Codable, Equatable, Sendable {
         self.osVersions = osVersions
         self.status = status
         self.symbolicated = symbolicated
+        self.sourceAnchors = sourceAnchors
+        self.suspects = suspects
     }
 
     public var totalOccurrences: Int { occurrences.values.reduce(0, +) }

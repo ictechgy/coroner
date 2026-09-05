@@ -576,6 +576,79 @@ final class CoronerTests: XCTestCase {
         XCTAssertEqual(top.code, 0)
         XCTAssertTrue(top.out.contains("[hang]"))
         XCTAssertFalse(top.out.contains("[crash]"))
+        // CI gate: new-since exits 1 exactly when new records exist
+        let gate = runCLI(["--store", store.baseDir.path, "new-since", "141"])
+        XCTAssertEqual(gate.code, 1, "new records must fail the gate")
+        let clean = runCLI(["--store", store.baseDir.path, "new-since", "999"])
+        XCTAssertEqual(clean.code, 0, "no new records must pass")
+    }
+
+    // MARK: - suspect_commit (estimate)
+
+    func testSuspectorCrossesGitHistoryWithAnchors() {
+        let log = [
+            "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678\u{1f}Fix session restore",
+            "Sources/App/sessionStore.swift",
+            "README.md",
+            "99887766554433221100ffeeddccbbaa99887766\u{1f}Bump version",
+            "README.md",
+        ].joined(separator: "\n")
+        struct GitStub: ProcessRunning {
+            let out: String
+            func run(_ launchPath: String, _ args: [String]) -> String { out }
+        }
+        let base = ClusterReport(id: "c-x", kind: .crash, signature: "s", topFrames: [],
+                                 firstSeenBuild: "142", lastSeenBuild: "142",
+                                 firstSeenAt: Date(timeIntervalSince1970: 1_700_000_000),
+                                 occurrences: ["142": 1],
+                                 sourceAnchors: ["SessionStore.swift"])
+        let suspects = Suspector(runner: GitStub(out: log), repoPath: "/repo").suspects(for: base)
+        XCTAssertEqual(suspects.count, 1, "only the commit touching the anchor file matches")
+        XCTAssertEqual(suspects[0].hash, "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678")
+        XCTAssertEqual(suspects[0].subject, "Fix session restore")
+        XCTAssertEqual(suspects[0].files, ["Sources/App/sessionStore.swift"])
+
+        // honest empties: no anchors, or no first_seen date
+        var bare = base; bare.sourceAnchors = nil
+        XCTAssertTrue(Suspector(runner: GitStub(out: log), repoPath: "/repo").suspects(for: bare).isEmpty)
+        bare = base; bare.sourceAnchors = ["SessionStore.swift"]; bare.firstSeenAt = nil
+        XCTAssertTrue(Suspector(runner: GitStub(out: log), repoPath: "/repo").suspects(for: bare).isEmpty)
+    }
+
+    func testSuspectsPersistAndRender() throws {
+        let store = tempStore()
+        ingest(store, "crash-new-142.ips")
+        let id = store.clusters.values.first!.id
+        let s = [SuspectCommit(hash: "abcdef1234567890", subject: "Fix thing", files: ["Sources/A.swift"])]
+        _ = try store.setSuspects(id: id, suspects: s)
+        let reloaded = Store(baseDir: store.baseDir)
+        XCTAssertEqual(try reloaded.detail(id: id).suspects, s)
+        let text = Renderer.detail(try reloaded.detail(id: id))
+        XCTAssertTrue(text.contains("estimate"))
+        XCTAssertTrue(text.contains("abcdef1"))
+    }
+
+    func testIngestRecordsSourceAnchorsFromSymbolicatedFrames() {
+        // symbolication stub (same layout as testSymbolicationWithStubbedAtos)
+        let tmp = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("coroner-anchor-\(UUID().uuidString)", isDirectory: true)
+        let dwarf = tmp.appendingPathComponent("DemoApp.dSYM/Contents/Resources/DWARF/DemoApp")
+        try! FileManager.default.createDirectory(at: dwarf.deletingLastPathComponent(), withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: dwarf.path, contents: Data())
+        struct Stub: ProcessRunning {
+            func run(_ launchPath: String, _ args: [String]) -> String {
+                launchPath.hasSuffix("dwarfdump")
+                    ? "UUID: 11111111-2222-3333-4444-555555555555 (arm64) DemoApp"
+                    : "SessionStore.dequeue (in DemoApp) (sessionStore.swift:88)\nSessionStore.flush (in DemoApp)"
+            }
+        }
+        let stub = Stub()
+        var report = try! TelemetryParser().parseFile(at: fixture("crash-new-142.ips").path)[0]
+        report = Symbolicator(locator: SearchPathLocator(paths: [tmp.path], runner: stub), runner: stub)
+            .symbolicate(report: report)
+        let store = tempStore()
+        _ = store.ingest(report)
+        XCTAssertEqual(store.clusters.values.first?.sourceAnchors, ["sessionStore.swift"])
     }
 
     // MARK: - MCP

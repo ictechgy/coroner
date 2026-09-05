@@ -11,12 +11,14 @@ USAGE:
     coroner [--store <dir>] [--dsym <path>...] ingest <file|dir>...
     coroner [--store <dir>] list [--kind crash|hang|cpu|disk] [--limit n]
     coroner [--store <dir>] show <cluster-id>
-    coroner [--store <dir>] new-since <build>
+    coroner [--store <dir>] new-since <build>   # exit 1 when new records exist (CI gate)
     coroner [--store <dir>] top [n]
     coroner [--store <dir>] is-known "<signature substring>"
     coroner [--store <dir>] hang-report [--period today|week|all]
     coroner [--store <dir>] digest [--period today|week|all]
     coroner [--store <dir>] mark <cluster-id> --status open|known|fixed-in
+    coroner [--store <dir>] suspect <cluster-id> [--repo <path>] [--window-days 14]
+                                   # estimate suspect_commit (git × source anchors)
     coroner [--store <dir>] mcp        # MCP server over stdio (6 tools)
 
 OPTIONS:
@@ -86,6 +88,8 @@ case "digest":
     digest(rest)
 case "mark":
     mark(rest)
+case "suspect":
+    suspect(rest)
 case "mcp":
     mcp()
 default:
@@ -191,6 +195,8 @@ func newSince(_ args: [String]) {
         print("NEW since build \(build): \(hits.count) cluster(s)")
         print(Renderer.list(hits))
     }
+    // CI gate: a non-empty answer must fail the build (기획서 §CI 게이트).
+    exit(hits.isEmpty ? 0 : 1)
 }
 
 func top(_ args: [String]) {
@@ -264,6 +270,34 @@ func mark(_ args: [String]) {
 func mcp() {
     let store = Store(baseDir: storeBase)
     CoronerMCP.engine(store: store, version: version).serve()
+}
+
+func suspect(_ args: [String]) {
+    guard let id = args.first(where: { !$0.hasPrefix("--") }) else {
+        fail("suspect needs a cluster id (see: coroner list)")
+    }
+    let opts = flagValues(args, flags: ["--repo", "--window-days"])
+    let windowDays = opts["--window-days"].flatMap(Int.init) ?? 14
+    let store = Store(baseDir: storeBase)
+    let cluster: ClusterReport
+    do {
+        cluster = try store.detail(id: id)
+    } catch {
+        fail("\(error)")
+    }
+    let repo = Suspector.resolveRepoRoot(opts["repo"] ?? ".")
+    let suspects = Suspector(repoPath: repo).suspects(for: cluster, windowDays: windowDays)
+    guard !suspects.isEmpty else {
+        print("no suspects — requires a symbolicated cluster (source anchors) and commits near first_seen")
+        return
+    }
+    try? store.setSuspects(id: id, suspects: suspects)
+    print("suspect commits for \(id) — estimates, not verdicts:")
+    for s in suspects {
+        print("  \(String(s.hash.prefix(7)))  \(s.subject)")
+        print("    matched: \(s.files.joined(separator: ", "))")
+    }
+    print("recorded on the cluster (coroner show \(id))")
 }
 
 // MARK: - Helpers

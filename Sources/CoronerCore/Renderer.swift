@@ -32,6 +32,15 @@ public enum Renderer {
         for (i, f) in c.topFrames.enumerated() {
             out.append("  \(i). \(f)")
         }
+        if let anchors = c.sourceAnchors, !anchors.isEmpty {
+            out.append("source anchors: \(anchors.joined(separator: ", "))")
+        }
+        if let suspects = c.suspects, !suspects.isEmpty {
+            out.append("suspect commits (estimate — telemetry is evidence, not a verdict):")
+            for s in suspects {
+                out.append("  \(String(s.hash.prefix(7)))  \(s.subject)  [matched: \(s.files.joined(separator: ", "))]")
+            }
+        }
         return out.joined(separator: "\n")
     }
 
