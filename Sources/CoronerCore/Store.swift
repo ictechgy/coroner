@@ -21,6 +21,9 @@ public final class Store {
     public let baseDir: URL
     public let reportsDir: URL
     public private(set) var clusters: [String: ClusterReport] = [:]
+    /// signature → cluster id; keeps ingest merges O(1) instead of a full scan
+    /// per report, and makes the merge pick deterministic on legacy journals.
+    public private(set) var clusterIDBySignature: [String: String] = [:]
     public private(set) var seenFingerprints: Set<String> = []
     private let seenFileURL: URL
 
@@ -49,6 +52,9 @@ public final class Store {
                 continue
             }
             clusters[c.id] = c
+            if clusterIDBySignature[c.signature] == nil {
+                clusterIDBySignature[c.signature] = c.id
+            }
         }
         if unreadable > 0 {
             warn("skipped \(unreadable) unreadable journal file(s) under \(reportsDir.path)")
@@ -57,6 +63,9 @@ public final class Store {
 
     public func save(_ c: ClusterReport) {
         clusters[c.id] = c
+        if clusterIDBySignature[c.signature] == nil {
+            clusterIDBySignature[c.signature] = c.id
+        }
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         enc.dateEncodingStrategy = .iso8601
@@ -104,11 +113,16 @@ public final class Store {
 
     // MARK: - Ingest
 
+    /// Cluster id already carrying this signature, if any (O(1) via the index).
+    public func clusterID(forSignature sig: String) -> String? {
+        clusterIDBySignature[sig]
+    }
+
     /// Merge one symbolicated report into the journal. Returns the (possibly new) cluster.
     @discardableResult
     public func ingest(_ report: ParsedReport) -> ClusterReport {
         let sig = Signature.of(frames: report.frames)
-        let first = clusters.values.first { $0.signature == sig }
+        let first = clusterIDBySignature[sig].flatMap { clusters[$0] }
         let build = report.buildVersion ?? "unknown"
         let date = report.timestamp ?? Date()
         let symbolicated = report.frames.contains { $0.symbol != nil }

@@ -90,6 +90,9 @@ final class CoronerTests: XCTestCase {
         XCTAssertEqual(reports[0].frames[0].binary, "testBinaryName")
         XCTAssertNotNil(reports[0].exceptionSummary)
         XCTAssertNil(reports[2].exceptionSummary, "cpuException diagnostics carry no exceptionType")
+        // frame-level binaryUUIDs rebuild the missing image table → dSYM lookup possible
+        let img = reports[0].images.first { $0.name == "testBinaryName" }
+        XCTAssertNotNil(img?.uuid, "frame binaryUUID must survive into the image table")
     }
 
     func testRealIPSXcodeTranslatedExport() throws {
@@ -298,6 +301,17 @@ final class CoronerTests: XCTestCase {
         XCTAssertThrowsError(try store.setStatus(id: id, status: "bogus"))
     }
 
+    func testSignatureIndexResolvesMerges() {
+        let store = tempStore()
+        ingest(store, "crash-new-142.ips")
+        let sig = store.clusters.values.first!.signature
+        XCTAssertEqual(store.clusterID(forSignature: sig), store.clusters.values.first!.id)
+        XCTAssertNil(store.clusterID(forSignature: "no such signature"))
+        // index survives reload (legacy journals get it rebuilt on load)
+        let reloaded = Store(baseDir: store.baseDir)
+        XCTAssertEqual(reloaded.clusterID(forSignature: sig), store.clusters.values.first!.id)
+    }
+
     func testWithinPeriodUsesInjectedNow() {
         let store = tempStore()
         ingest(store, "crash-old-141.ips")            // last seen 2026-09-01
@@ -372,8 +386,7 @@ final class CoronerTests: XCTestCase {
         XCTAssertEqual(inv?.addresses, ["0x800"])
     }
 
-    func testAtosLineParsing() {
-        let a = Symbolicator.parseAtosLine("SessionStore.dequeue (in DemoApp) (sessionStore.swift:88)")
+    func testAtosLineParsing() {        let a = Symbolicator.parseAtosLine("SessionStore.dequeue (in DemoApp) (sessionStore.swift:88)")
         XCTAssertEqual(a.symbol, "SessionStore.dequeue")
         XCTAssertEqual(a.file, "sessionStore.swift")
         XCTAssertEqual(a.line, 88)
@@ -476,6 +489,62 @@ final class CoronerTests: XCTestCase {
         XCTAssertEqual(unknown.locate(binaryName: "App", uuid: nil), dsym.path)
     }
 
+    func testProcessRunnerTimesOutHungChild() {
+        // /bin/sleep produces no output and never exits on its own here.
+        let runner = ProcessRunner(timeout: 0.5)
+        let start = Date()
+        let out = runner.run("/bin/sleep", ["5"])
+        XCTAssertLessThan(Date().timeIntervalSince(start), 3, "a wedged child must not wedge coroner")
+        XCTAssertEqual(out, "")
+    }
+
+    func testDwarfBinaryFallbackIsDeterministic() throws {
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("coroner-dwarf-\(UUID().uuidString)", isDirectory: true)
+        let dwarfDir = dir.appendingPathComponent("Contents/Resources/DWARF")
+        try FileManager.default.createDirectory(at: dwarfDir, withIntermediateDirectories: true)
+        for name in [".DS_Store", "Beta", "Alpha"] {
+            FileManager.default.createFile(atPath: dwarfDir.appendingPathComponent(name).path, contents: Data())
+        }
+        // exact name wins when present
+        XCTAssertEqual(Symbolicator.dwarfBinary(dsymPath: dir.path, binaryName: "Alpha")
+            .hasSuffix("DWARF/Alpha"), true)
+        // otherwise: sorted, hidden files never picked
+        let pick = Symbolicator.dwarfBinary(dsymPath: dir.path, binaryName: "Missing")
+        XCTAssertTrue(pick.hasSuffix("DWARF/Alpha"), "expected the first sorted non-hidden entry")
+    }
+
+    func testCLIRejectsTrailingGlobalFlagsAndSupportsTopKind() throws {
+        let packageRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let bin = packageRoot.appendingPathComponent(".build/debug/coroner")
+        guard FileManager.default.fileExists(atPath: bin.path) else {
+            throw XCTSkip("debug executable not built yet")
+        }
+        func runCLI(_ args: [String]) -> (code: Int32, out: String) {
+            let p = Process()
+            p.executableURL = bin
+            p.arguments = args
+            let outPipe = Pipe()
+            p.standardOutput = outPipe
+            p.standardError = Pipe()
+            try! p.run()
+            let out = String(data: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            p.waitUntilExit()
+            return (p.terminationStatus, out)
+        }
+        // trailing --store used to be swallowed as a positional arg
+        let bad = runCLI(["list", "--store", "/tmp/nowhere"])
+        XCTAssertEqual(bad.code, 2, "misplaced global option must fail loudly, not silently")
+        // top takes --kind like list
+        let store = tempStore()
+        ingest(store, "metrickit-hang.json")
+        let top = runCLI(["--store", store.baseDir.path, "top", "--kind", "hang"])
+        XCTAssertEqual(top.code, 0)
+        XCTAssertTrue(top.out.contains("[hang]"))
+        XCTAssertFalse(top.out.contains("[crash]"))
+    }
+
     // MARK: - MCP
 
     func testMCPInitializeToolsListAndCalls() {
@@ -534,7 +603,7 @@ final class CoronerTests: XCTestCase {
 
         let p = Process()
         p.executableURL = bin
-        p.arguments = ["mcp", "--store", storeDir.path]
+        p.arguments = ["--store", storeDir.path, "mcp"]
         let inPipe = Pipe(), outPipe = Pipe()
         p.standardInput = inPipe
         p.standardOutput = outPipe

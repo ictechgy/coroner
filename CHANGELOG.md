@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+리뷰 P2 패치 배치:
+
+- **후행 전역 플래그 거부** — `coroner ingest . --store X`가 플래그를 조용히 삼켜 기본
+  저널에 쓰던 문제를 exit 2 + 안내로 수정 (`--store`/`--dsym`/`--no-mask`는 명령 앞에)
+- **`top --kind`** 지원 (`list`와 정렬)
+- **`ProcessRunner` 타임아웃(기본 60초)** — 손상 dSYM으로 atos가 멈춰도 coroner가 멈추지 않음
+- **`dwarfBinary` 폴백 결정성** — DWARF 디렉터리 후보를 숨김 파일 제외·정렬로 선택
+  (.DS_Store 피크 위험 제거)
+- **`Store` 시그니처 인덱스** — ingest 병합이 전수 스캔(O(리포트×클러스터))에서 O(1)로,
+  레거시 저널 병합 선택도 결정적으로
+- **MetricKit 프레임 `binaryUUID` 역구성** — 이미지 테이블이 없는 실측 페이로드에서
+  프레임의 UUID로 테이블을 만들어 dSYM 탐색(Spotlight) 경로 확보
+- XCTest 41 → 45개
+
 실데이터 검증 1차 — 공개된 실제 텔레메트리(iOS 16 `.ips` 1건, iOS 14 MetricKit 페이로드 1건)로
 발견한 포맷 변형 5종을 파서에 반영하고 `Fixtures/real/` 회귀 테스트로 잠금:
 

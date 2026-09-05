@@ -189,7 +189,9 @@ public protocol ProcessRunning {
 }
 
 public struct ProcessRunner: ProcessRunning {
-    public init() {}
+    /// Children that wedge (corrupt dSYM → hung atos) must not wedge coroner.
+    public let timeout: TimeInterval
+    public init(timeout: TimeInterval = 60) { self.timeout = timeout }
 
     @discardableResult
     public func run(_ launchPath: String, _ args: [String]) -> String {
@@ -206,7 +208,17 @@ public struct ProcessRunner: ProcessRunning {
         } catch {
             return ""
         }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        var data = Data()
+        let group = DispatchGroup()
+        group.enter()
+        DispatchQueue.global().async {
+            data = pipe.fileHandleForReading.readDataToEndOfFile()
+            group.leave()
+        }
+        if group.wait(timeout: .now() + timeout) == .timedOut {
+            p.terminate()
+            group.wait()   // SIGTERM closes the child's write end → read returns
+        }
         p.waitUntilExit()
         return String(data: data, encoding: .utf8) ?? ""
     }
@@ -277,8 +289,11 @@ public final class Symbolicator {
             .appendingPathComponent("Contents/Resources/DWARF/\(binaryName)").path
         if fm.fileExists(atPath: direct) { return direct }
         let dir = (direct as NSString).deletingLastPathComponent
-        if let entries = try? fm.contentsOfDirectory(atPath: dir), let first = entries.first {
-            return URL(fileURLWithPath: dir).appendingPathComponent(first).path
+        // contentsOfDirectory order is arbitrary and includes Finder droppings
+        // (.DS_Store) — filter and sort so the fallback pick is deterministic.
+        if let entries = try? fm.contentsOfDirectory(atPath: dir),
+           let pick = entries.filter({ !$0.hasPrefix(".") }).sorted().first {
+            return URL(fileURLWithPath: dir).appendingPathComponent(pick).path
         }
         return direct
     }

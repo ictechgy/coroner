@@ -57,6 +57,12 @@ guard !argv.isEmpty else { print(helpText); exit(0) }
 let command = argv[0]
 let rest = Array(argv.dropFirst())
 
+// Global options only parse before the command; a trailing one would otherwise
+// be swallowed as a positional arg and silently change where output goes.
+if let misplaced = rest.first(where: { ["--store", "--dsym", "--no-mask"].contains($0) }) {
+    fail("\(misplaced) is a global option — put it before the command: coroner \(misplaced) <value> \(command) …")
+}
+
 switch command {
 case "--help", "-h", "help":
     print(helpText)
@@ -126,7 +132,7 @@ func ingest(_ args: [String]) {
         guard !reports.isEmpty else { continue }
         for var report in reports {
             report = symbolicator.symbolicate(report: report)
-            let existed = store.clusters.values.contains { $0.signature == Signature.of(frames: report.frames) }
+            let existed = store.clusterID(forSignature: Signature.of(frames: report.frames)) != nil
             let cluster = store.ingest(report)
             reportCount += 1
             byKind[report.kind, default: 0] += 1
@@ -188,10 +194,11 @@ func newSince(_ args: [String]) {
 }
 
 func top(_ args: [String]) {
-    let n = args.first.flatMap(Int.init) ?? 10
+    let kind = flagValues(args, flags: ["--kind"])["--kind"].flatMap { DiagnosticKind.parse($0) }
+    let n = args.first(where: { Int($0) != nil }).flatMap(Int.init) ?? 10
     let store = Store(baseDir: storeBase)
-    let hits = Array(store.all().prefix(n))
-    if hits.isEmpty { print("journal empty — run: coroner ingest <file|dir>"); return }
+    let hits = Array(store.all(kind: kind).prefix(n))
+    if hits.isEmpty { print("journal empty\(kind.map { " for kind \($0.displayName)" } ?? "") — run: coroner ingest <file|dir>"); return }
     print("top \(hits.count) of \(store.clusters.count) cluster(s) by occurrences")
     print(Renderer.list(hits))
 }

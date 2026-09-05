@@ -228,6 +228,16 @@ public struct TelemetryParser {
                 // Docs/examples use "frames"; real payloads use "callStackRootFrames".
                 let list = (attributed["frames"] ?? attributed["callStackRootFrames"]) as? [[String: Any]] ?? []
                 r.frames = flatten(frames: list, images: images)
+                // Real payloads put binaryUUID on each frame and carry no image
+                // table — rebuild one so symbolication can still locate dSYMs.
+                if images.isEmpty {
+                    for f in list {
+                        guard let name = f["binaryName"] as? String, images[name] == nil else { continue }
+                        images[name] = BinaryImage(name: name,
+                                                   uuid: Self.normalizeUUID(f["binaryUUID"] as? String))
+                    }
+                    r.images = images.values.sorted { $0.name < $1.name }
+                }
             }
         }
         return r
