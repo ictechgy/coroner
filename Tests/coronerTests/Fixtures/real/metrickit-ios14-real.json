@@ -1,0 +1,131 @@
+{
+  "crashDiagnostics" : [
+    {
+      "version" : "1.0.0",
+      "callStackTree" : {
+        "callStacks" : [
+          {
+            "threadAttributed" : true,
+            "callStackRootFrames" : [
+              {
+                "binaryUUID" : "241E783B-4158-4B50-9960-FB8C840171EE",
+                "offsetIntoBinaryTextSegment" : 123,
+                "sampleCount" : 20,
+                "binaryName" : "testBinaryName",
+                "address" : 74565
+              }
+            ]
+          }
+        ],
+        "callStackPerThread" : true
+      },
+      "diagnosticMetaData" : {
+        "appBuildVersion" : "1",
+        "appVersion" : "1.0",
+        "regionFormat" : "GB",
+        "exceptionType" : 1,
+        "osVersion" : "iPhone OS 14.0 (18A5301v)",
+        "deviceType" : "iPhone8,2",
+        "signal" : 11,
+        "exceptionCode" : 1,
+        "platformArchitecture" : "arm64",
+        "terminationReason" : "Namespace SIGNAL, Code 0xb",
+        "virtualMemoryRegionInfo" : "0 is not in any region.  Bytes before following region: 4000000000 REGION TYPE                      START - END             [ VSIZE] PRT\/MAX SHRMOD  REGION DETAIL UNUSED SPACE AT START ---> __TEXT                 0000000000000000-0000000000000000 [   32K] r-x\/r-x SM=COW  ...pp\/Test"
+      }
+    }
+  ],
+  "timeStampEnd" : "2020-08-08 20:16:32 +0000",
+  "hangDiagnostics" : [
+    {
+      "version" : "1.0.0",
+      "callStackTree" : {
+        "callStacks" : [
+          {
+            "threadAttributed" : true,
+            "callStackRootFrames" : [
+              {
+                "binaryUUID" : "241E783B-4158-4B50-9960-FB8C840171EE",
+                "offsetIntoBinaryTextSegment" : 123,
+                "sampleCount" : 20,
+                "binaryName" : "testBinaryName",
+                "address" : 74565
+              }
+            ]
+          }
+        ],
+        "callStackPerThread" : true
+      },
+      "diagnosticMetaData" : {
+        "appBuildVersion" : "1",
+        "appVersion" : "1.0",
+        "regionFormat" : "GB",
+        "hangDuration" : "20 secs",
+        "osVersion" : "iPhone OS 14.0 (18A5301v)",
+        "deviceType" : "iPhone8,2",
+        "platformArchitecture" : "arm64"
+      }
+    }
+  ],
+  "cpuExceptionDiagnostics" : [
+    {
+      "version" : "1.0.0",
+      "callStackTree" : {
+        "callStacks" : [
+          {
+            "callStackRootFrames" : [
+              {
+                "binaryUUID" : "7CF85767-CF25-4047-8DCB-F6FF51429DF8",
+                "offsetIntoBinaryTextSegment" : 123,
+                "sampleCount" : 20,
+                "binaryName" : "testBinaryName",
+                "address" : 74565
+              }
+            ]
+          }
+        ],
+        "callStackPerThread" : false
+      },
+      "diagnosticMetaData" : {
+        "appBuildVersion" : "1",
+        "appVersion" : "1.0",
+        "regionFormat" : "GB",
+        "osVersion" : "iPhone OS 14.0 (18A5301v)",
+        "deviceType" : "iPhone8,2",
+        "platformArchitecture" : "arm64",
+        "totalCPUTime" : "20 secs",
+        "totalSampledTime" : "20 secs"
+      }
+    }
+  ],
+  "timeStampBegin" : "2020-08-08 20:16:32 +0000",
+  "diskWriteExceptionDiagnostics" : [
+    {
+      "version" : "1.0.0",
+      "callStackTree" : {
+        "callStacks" : [
+          {
+            "callStackRootFrames" : [
+              {
+                "binaryUUID" : "7CF85767-CF25-4047-8DCB-F6FF51429DF8",
+                "offsetIntoBinaryTextSegment" : 123,
+                "sampleCount" : 20,
+                "binaryName" : "testBinaryName",
+                "address" : 74565
+              }
+            ]
+          }
+        ],
+        "callStackPerThread" : false
+      },
+      "diagnosticMetaData" : {
+        "appBuildVersion" : "1",
+        "appVersion" : "1.0",
+        "regionFormat" : "GB",
+        "writesCaused" : "2,000 byte",
+        "osVersion" : "iPhone OS 14.0 (18A5301v)",
+        "deviceType" : "iPhone8,2",
+        "platformArchitecture" : "arm64"
+      }
+    }
+  ]
+}

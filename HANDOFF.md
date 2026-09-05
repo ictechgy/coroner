@@ -18,12 +18,15 @@
 ## 다음 세션 할 일 (우선순위)
 
 ### P0 — 실데이터 검증 (신뢰도의 마지막 빈칸)
-지금까지 전부 synthetic fixture로만 검증했다. 실제 포맷 변형을 맞댄 적 없음.
-1. 실제 `.ips` 확보: Xcode Organizer(Window → Organizer → Crashes → Export) 또는
-   `xcrun devicectl` 기기 수집. 자기 TestFlight 앱이 없으면 공개 샘플 코퍼스로 대체.
-2. 실제 MetricKit 페이로드: 자기 앱에 `MXMetricManager` 전달자 넣고 하루 수집, 또는
-   커뮤니티 샘플. Apple 포맷이 OS 버전마다 변한다는 게 알려진 리스크(Sentry-cocoa 이슈들 참조).
-3. 파서가 놓치는 변형 발견 → fixture로 잠그고 tolerant 파서 확장. **이것이 v0.3보다 먼저다.**
+**1차 완료(2026-09-05, 미커밋)**: 공개 실데이터 2종으로 검증 — iOS 16 `.ips`
+(MacSymbolicator 테스트 코퍼스) + iOS 14 MetricKit 페이로드(Sherlouk gist).
+변이 5종 발견·수정·`Fixtures/real/` 회귀 테스트로 잠금 (실제 `.ips` 전체 파싱 실패 버그 포함).
+CHANGELOG "Unreleased" 참조. 남은 것:
+1. 추가 확보: Xcode Organizer Export, `xcrun devicectl` 기기 수집, 자기 TestFlight 앱,
+   공개 이슈에 붙은 `.ips` 본문(flutter#148927, maui#29641, isar#824 등 전문 첨부 확인됨).
+2. 실제 MetricKit 다양성: iOS 15+ 최신 포맷, hangDuration·cpuException 실측 변형.
+3. 구식 텍스트 `.crash` 포맷은 현행 미지원 — 지원 여부는 별도 결정 사항.
+4. 파서가 놓치는 변형 발견 → fixture로 잠그고 tolerant 파서 확장. **이것이 v0.3보다 먼저다.**
 
 ### P1 — v0.3 기능 (기획서 로드맵 순서)
 1. **`.coronerignore`** — 수집 제외 패턴. `FileDiscovery`에 글롭 매칭만 추가하면 되는 소작. 기획서 v0.2 옵션 미이행분.

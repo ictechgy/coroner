@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+실데이터 검증 1차 — 공개된 실제 텔레메트리(iOS 16 `.ips` 1건, iOS 14 MetricKit 페이로드 1건)로
+발견한 포맷 변형 5종을 파서에 반영하고 `Fixtures/real/` 회귀 테스트로 잠금:
+
+- `.ips` 본문 분할 버그 수정 — Apple이 pretty-print한 본문 JSON 안의 빈 줄(빈 딕셔너리)이
+  메타데이터/본문 separator 오인식을 일으켜 실제 `.ips`가 통째로 파싱 실패하던 것을 첫 줄 기준
+  분할로 수정
+- Apple 고유 타임스탬프 포맷 지원 — `"2022-09-18 15:28:37.00 +0900"` 형태(`.ips` 메타데이터·
+  MetricKit 공통)를 ISO8601 외 포맷으로 추가
+- MetricKit 실측 키 반영 — 프레임 리스트 `callStackRootFrames`(문서의 `frames`와 병행 지원),
+  디바이스 `deviceType`(`deviceModel`과 병행), disk-write 키 복수형 `diskWriteExceptionDiagnostics`,
+  payload 최상위 `timeStampBegin/End`를 개별 진단의 폴백 타임스탬프로 사용
+- MetricKit `exceptionType`이 숫자로 오는 실측 변형 허용
+- XCTest 34 → 36개
+
 ## 0.1.0 — 2026-09-05
 
 첫 릴리스. 기획서(기획서.md) v0.1+v0.2 스코프.

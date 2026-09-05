@@ -175,7 +175,8 @@ coroner [--store <dir>] [--dsym <path>...]
 - **클러스터링**: 정규화 시그니처 정확 매칭. 유사도 폴백(ReBucket식)은 v1.x — GPTrace(LLM 임베딩)도 그때 인용
 - **`.coronerignore` 미구현**: 기획서 v0.2 옵션(수집 제외 패턴). 현재는 내장 제외(`.coroner`/`.git`/`.build`/숨김 디렉터리)만 — v0.3 계획
 - **v0.3 미포함**: App Store Connect API dSYM 자동 다운로드, git diff와의 suspect_commit 교차, CI 게이트
-- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 34개 테스트 전부 로컬 실행
+- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 36개 테스트 전부 로컬 실행
+- **실데이터 코퍼스**: `Tests/coronerTests/Fixtures/real/` — 공개된 실제 텔레메트리(iOS 16 `.ips`, iOS 14 MetricKit 페이로드)로 포맷 변형을 잠근 회귀 테스트
 
 ## 로드맵
 
@@ -189,7 +190,7 @@ v1.x  스택 유사도 클러스터링 옵션(ReBucket식 / GPTrace식 임베딩
 ## 개발
 
 ```bash
-make test        # swift test — 34 tests, 전부 로컬(실 dSYM·네트워크 불요), 수 초
+make test        # swift test — 36 tests, 전부 로컬(실 dSYM·네트워크 불요), 수 초
 make release
 ```
 

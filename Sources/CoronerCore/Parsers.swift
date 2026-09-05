@@ -62,17 +62,26 @@ public struct TelemetryParser {
 
     private func looksLikeMetricKit(_ obj: [String: Any]) -> Bool {
         let keys = ["crashDiagnostics", "hangDiagnostics", "cpuExceptionDiagnostics",
-                    "diskWriteExceptionDiagnostic", "metricPayload", "diagnostics"]
+                    "diskWriteExceptionDiagnostic", "diskWriteExceptionDiagnostics",
+                    "metricPayload", "diagnostics"]
         return keys.contains { obj[$0] != nil }
     }
 
     private func tryParseIPS(data: Data, sourcePath: String) -> ParsedReport? {
         // Modern .ips = one JSON metadata line (app/build version, device, timestamp…),
-        // blank line, body JSON (threads/usedImages/exception). Merge both.
+        // then body JSON (threads/usedImages/exception). Merge both.
         if let report = ipsReport(fromBody: data, metadata: nil, sourcePath: sourcePath) {
             return report
         }
         guard let text = String(data: data, encoding: .utf8) else { return nil }
+        // Prefer splitting at the first line: Apple pretty-prints the body JSON and
+        // that output can itself contain blank lines (empty dicts like "x" : {\n\n}),
+        // so a "\n\n" separator scan may cut into the middle of the body.
+        if let firstNL = text.firstIndex(of: "\n"),
+           json(Data(text[..<firstNL].utf8)) != nil,
+           let report = ipsReport(fromBody: Data(text[firstNL...].utf8), metadata: Data(text[..<firstNL].utf8), sourcePath: sourcePath) {
+            return report
+        }
         guard let sep = text.range(of: "\n\n") else { return nil }
         let metadata = Data(String(text[..<sep.lowerBound]).utf8)
         let body = Data(String(text[sep.upperBound...]).utf8)
@@ -150,6 +159,8 @@ public struct TelemetryParser {
             ("crashDiagnostics", .crash),
             ("hangDiagnostics", .hang),
             ("cpuExceptionDiagnostics", .cpu),
+            // Singular per Apple docs, plural in real payloads.
+            ("diskWriteExceptionDiagnostics", .disk),
             ("diskWriteExceptionDiagnostic", .disk),
         ]
         for group in groups {
@@ -157,6 +168,11 @@ public struct TelemetryParser {
             for diag in diags {
                 reports.append(metricKitReport(diag: diag, kind: group.kind, sourcePath: sourcePath))
             }
+        }
+        // Real payloads put the collection window at payload level, not per-diagnostic.
+        let payloadTS = Self.date(any: obj["timeStampBegin"]) ?? Self.date(any: obj["timeStampEnd"])
+        for i in reports.indices where reports[i].timestamp == nil {
+            reports[i].timestamp = payloadTS
         }
         return reports
     }
@@ -167,11 +183,16 @@ public struct TelemetryParser {
         r.buildVersion = meta?["appBuildVersion"] as? String
         r.appVersion = meta?["appVersion"] as? String
         r.osVersion = meta?["osVersion"] as? String
-        r.deviceModel = meta?["deviceModel"] as? String
+        // Apple docs say deviceModel; real payloads say deviceType.
+        r.deviceModel = (meta?["deviceModel"] ?? meta?["deviceType"]) as? String
         r.timestamp = Self.date(any: diag["timeStampBegin"]) ?? Self.date(any: diag["timeStampEnd"])
 
-        if let excType = meta?["exceptionType"] as? String, !excType.isEmpty {
-            r.exceptionSummary = excType
+        // exceptionType is a string in docs but a number in real payloads.
+        let excType = meta?["exceptionType"]
+        if let s = excType as? String, !s.isEmpty {
+            r.exceptionSummary = s
+        } else if let n = excType as? NSNumber {
+            r.exceptionSummary = n.stringValue
         }
 
         var images: [String: BinaryImage] = [:]
@@ -195,7 +216,9 @@ public struct TelemetryParser {
            let stacks = tree["callStacks"] as? [[String: Any]] {
             let attributed = stacks.first { ($0["threadAttributed"] as? Bool) == true } ?? stacks.first
             if let attributed {
-                r.frames = flatten(frames: attributed["frames"] as? [[String: Any]] ?? [], images: images)
+                // Docs/examples use "frames"; real payloads use "callStackRootFrames".
+                let list = (attributed["frames"] ?? attributed["callStackRootFrames"]) as? [[String: Any]] ?? []
+                r.frames = flatten(frames: list, images: images)
             }
         }
         return r
@@ -240,6 +263,10 @@ public struct TelemetryParser {
         if let s = any as? String {
             if let d = isoFractional.date(from: s) { return d }
             if let d = iso.date(from: s) { return d }
+            // Apple's own format in .ips metadata and MetricKit payloads:
+            // "2022-09-18 15:28:37.00 +0900" / "2020-08-08 20:16:32 +0000".
+            if let d = appleFractional.date(from: s) { return d }
+            if let d = apple.date(from: s) { return d }
             return nil
         }
         if let n = any as? NSNumber {
@@ -247,6 +274,20 @@ public struct TelemetryParser {
         }
         return nil
     }
+
+    private static let apple: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
+        return f
+    }()
+
+    private static let appleFractional: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH:mm:ss.SS Z"
+        return f
+    }()
 
     private static let iso: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()

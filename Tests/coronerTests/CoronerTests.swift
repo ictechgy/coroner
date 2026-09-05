@@ -56,6 +56,42 @@ final class CoronerTests: XCTestCase {
         XCTAssertEqual(reports[0].frames[0].offset, 2)
     }
 
+    // MARK: - Real-world corpus (Fixtures/real — see README "실데이터 검증")
+
+    func testRealIPSIOS16PrettyPrintedBody() throws {
+        // Real iOS 16 .ips (MacSymbolicator test corpus): Apple pretty-prints the
+        // body JSON, which puts blank lines INSIDE the body (empty dicts like
+        // "factorPackIds" : {\n\n}). The metadata/body split must survive them.
+        let reports = try TelemetryParser().parseFile(at: fixture("real/ios16-pretty-printed.ips").path)
+        XCTAssertEqual(reports.count, 1)
+        let r = reports[0]
+        XCTAssertEqual(r.kind, .crash)
+        XCTAssertEqual(r.buildVersion, "1")
+        XCTAssertEqual(r.osVersion, "iPhone OS 16.0 (20A362)")
+        XCTAssertTrue(r.exceptionSummary?.contains("EXC_BREAKPOINT") ?? false)
+        XCTAssertFalse(r.frames.isEmpty, "faulting-thread frames must survive the split")
+        XCTAssertNotNil(r.images.first { $0.name == "iOSCrashingTest" }?.uuid)
+        XCTAssertNotNil(r.timestamp, "Apple '.ips' timestamp '2022-09-18 15:28:37.00 +0900' must parse")
+    }
+
+    func testRealMetricKitIOS14Payload() throws {
+        // Real iOS 14 MXDiagnosticPayload (Sherlouk gist): frames live under
+        // "callStackRootFrames" (not "frames"), device key is "deviceType",
+        // and timestamps sit at payload level in Apple's own date format.
+        let reports = try TelemetryParser().parseFile(at: fixture("real/metrickit-ios14-real.json").path)
+        XCTAssertEqual(reports.map { $0.kind }, [.crash, .hang, .cpu, .disk])
+        for r in reports {
+            XCTAssertEqual(r.buildVersion, "1")
+            XCTAssertEqual(r.appVersion, "1.0")
+            XCTAssertEqual(r.deviceModel, "iPhone8,2")
+            XCTAssertFalse(r.frames.isEmpty, "callStackRootFrames must be read")
+            XCTAssertNotNil(r.timestamp, "payload-level timeStampBegin must apply")
+        }
+        XCTAssertEqual(reports[0].frames[0].binary, "testBinaryName")
+        XCTAssertNotNil(reports[0].exceptionSummary)
+        XCTAssertNil(reports[2].exceptionSummary, "cpuException diagnostics carry no exceptionType")
+    }
+
     // MARK: - MetricKit parsing
 
     func testMetricKitJSONLinesAndNestedFlattening() throws {
