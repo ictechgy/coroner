@@ -49,19 +49,21 @@ c-20260905-511a61d2  [hang]   2026-09-05→2026-09-05  2x  DemoApp+0x800 → Dem
 c-20260905-f9a50921  [cpu-exception]  2026-09-05→2026-09-05  1x  DemoApp+0x2000
 c-20260905-0164a025  [disk-write]  2026-09-05→2026-09-05  1x  DemoApp+0x3000
 
-$ coroner top 2
-top 2 of 5 cluster(s) by occurrences
+$ coroner is-known "DemoApp+0x1010"
+KNOWN — 2 matching cluster(s):
 c-20260904-967cb4b5  [crash]  2026-09-04→2026-09-05  3x  DemoApp+0x1010 → DemoApp+0x2020 → libsystem_c.dylib+0x1000
 c-20260905-511a61d2  [hang]   2026-09-05→2026-09-05  2x  DemoApp+0x800 → DemoApp+0x1010
 
-$ coroner is-known "DemoApp+0x1010"
-KNOWN — 2 matching cluster(s):
-…
+$ coroner mark c-20260904-967cb4b5 --status known
+c-20260904-967cb4b5 → status: known
+
+$ coroner digest --period week
+digest written: /private/tmp/coroner-demo2/.coroner/digest/digest-20260905-0517.md (5 cluster(s) in period week)
 
 $ coroner show c-20260904-967cb4b5
 id: c-20260904-967cb4b5
 kind: crash
-status: open  symbolicated: no
+status: known  symbolicated: no
 signature: DemoApp+0x1010 → DemoApp+0x2020 → libsystem_c.dylib+0x1000
 exception: EXC_CRASH SIGABRT
 builds: first_seen 142, last_seen 143
@@ -73,9 +75,6 @@ os: iOS 19.1(3)
 top frames:
   0. DemoApp+0x1010
   …
-
-$ coroner digest
-digest written: ~/.coroner/digest/digest-20260904-2338.md
 ```
 
 ### 심볼리케이션
@@ -112,7 +111,7 @@ Claude Code (`claude_desktop_config.json` / `.mcp.json`):
 
 ```console
 $ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | coroner mcp
-{"capabilities":{"tools":{}},"id":1,"jsonrpc":"2.0","protocolVersion":"2024-11-05","result":…,"serverInfo":{"name":"coroner","version":"0.1.0"}}
+{"id":1,"jsonrpc":"2.0","result":{"capabilities":{"tools":{}},"protocolVersion":"2024-11-05","serverInfo":{"name":"coroner","version":"0.1.0"}}}
 ```
 
 | tool | 설명 |
@@ -172,15 +171,17 @@ coroner [--store <dir>] [--dsym <path>...]
 
 - **저장 포맷**: 기획서는 YAML — 외부 의존성 0 원칙을 위해 **JSON 직렬화**로 구현 (스키마 동일, 문서화)
 - **MCP 6툴**: 기획서 v0.2 범위 그대로 구현. digest는 LLM 없는 결정적 Markdown만 (기획서 원칙: "결정적 부분에 LLM 불요")
+- **`mark` 명령은 추가**: 기획서 CLI 목록에 없지만, `status` 필드(open/known/fixed-in)를 바꾸는 수단이 없으면 트리아지 판정이 저널에 축적되지 않아 루프가 닫히지 않음 — v0.1에서 보강
 - **클러스터링**: 정규화 시그니처 정확 매칭. 유사도 폴백(ReBucket식)은 v1.x — GPTrace(LLM 임베딩)도 그때 인용
+- **`.coronerignore` 미구현**: 기획서 v0.2 옵션(수집 제외 패턴). 현재는 내장 제외(`.coroner`/`.git`/`.build`/숨김 디렉터리)만 — v0.3 계획
 - **v0.3 미포함**: App Store Connect API dSYM 자동 다운로드, git diff와의 suspect_commit 교차, CI 게이트
-- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 27개 테스트 전부 로컬 실행
+- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 34개 테스트 전부 로컬 실행
 
 ## 로드맵
 
 ```
 v0.3  suspect_commit — first_seen 빌드 전후 git diff 교차 + indexstore-db 프레임→소스 앵커
-      App Store Connect dSYM 자동 다운로드, CI 게이트(빌드마다 new_since 차단)
+      App Store Connect dSYM 자동 다운로드, CI 게이트(빌드마다 new_since 차단), .coronerignore
 v1.x  스택 유사도 클러스터링 옵션(ReBucket식 / GPTrace식 임베딩), macOS 앱 지원,
       SaaS 역링크 내보내기(= Sentry 이슈 URL 부착), Android tombstone(네이티브 크래시 덤프) 지원
 ```
@@ -188,7 +189,7 @@ v1.x  스택 유사도 클러스터링 옵션(ReBucket식 / GPTrace식 임베딩
 ## 개발
 
 ```bash
-make test        # swift test — 32 tests
+make test        # swift test — 34 tests, 전부 로컬(실 dSYM·네트워크 불요), 수 초
 make release
 ```
 
