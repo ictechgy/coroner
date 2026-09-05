@@ -358,6 +358,39 @@ final class CoronerTests: XCTestCase {
         XCTAssertEqual(FileDiscovery.telemetryFiles(["/no/such/path"]).count, 0)
     }
 
+    func testCoronerIgnorePatterns() {
+        let patterns = ["# comment", "", "*.tmp.ips", "vendor/", "/rooted.ips", "a/**/deep.json", "note?.json"]
+        func m(_ p: String) -> Bool { CoronerIgnore.matches(patterns, path: p) }
+        XCTAssertTrue(m("x/y/report.tmp.ips"), "*.tmp.ips matches basename at any depth")
+        XCTAssertTrue(m("vendor"), "directory pattern matches the directory itself")
+        XCTAssertTrue(m("third/vendor/lib.json"), "directory pattern matches everything under it at any depth")
+        XCTAssertFalse(m("vendorx/a.json"), "vendor/ must not bleed into vendorx/")
+        XCTAssertTrue(m("rooted.ips"), "leading / anchors at the scan root")
+        XCTAssertFalse(m("sub/rooted.ips"), "anchored pattern does not match deeper paths")
+        XCTAssertTrue(m("a/b/c/deep.json"), "** spans components")
+        XCTAssertFalse(m("x/b/c/deep.json"), "a/**/deep.json is anchored at a/")
+        XCTAssertTrue(m("note1.json"))
+        XCTAssertFalse(m("note12.json"), "? is a single character")
+        XCTAssertFalse(m("plain.ips"))
+    }
+
+    func testDiscoveryHonorsCoronerIgnore() throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("coroner-ignore-\(UUID().uuidString)", isDirectory: true)
+        let fm = FileManager.default
+        for rel in ["keep.ips", "noise.tmp.ips", "vendor/skip.json", "sub/keep2.json"] {
+            let f = root.appendingPathComponent(rel)
+            try fm.createDirectory(at: f.deletingLastPathComponent(), withIntermediateDirectories: true)
+            fm.createFile(atPath: f.path, contents: Data("{}".utf8))
+        }
+        try "# excluded from ingest\n*.tmp.ips\nvendor/\n".write(to: root.appendingPathComponent(".coronerignore"),
+                                                              atomically: true, encoding: .utf8)
+        let found = FileDiscovery.telemetryFiles([root.path])
+        XCTAssertEqual(found.count, 2)
+        XCTAssertTrue(found[0].hasSuffix("keep.ips"))
+        XCTAssertTrue(found[1].hasSuffix("sub/keep2.json"))
+    }
+
     // MARK: - Build numbers
 
     func testBuildNumberParsing() {
