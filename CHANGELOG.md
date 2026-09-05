@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+P0 실데이터 3차 + ASC dSYM:
+
+- **macOS `.ips` 지원 검증** — 실측 macOS 12 크래시(xsscx/srd)에서 `app_version`·
+  `build_version`이 **빈 문자열**로 오는 변형 발견. nil로 병합해 저널에 "" 빌드 키가
+  생기는 오염 수정
+- **iOS 15+ MetricKit 실측 fixture** — 공개 블로그의 iOS 15.1 실측 덤프를 JSON으로 전사해
+  코퍼스의 마지막 빈칸(iOS 15+ 형태)을 채움. jetsam(`bug_type` 288) 원본은 공개 미확보 — 후보로 기록
+- **ASC dSYM 자동 다운로드 `asc-dsym` 구현** — 공식 ASC API(builds → buildBundles →
+  dSYMUrl, fastlane과 동일 사슬)로 dSYM zip 다운로드·해제. Core는 순수 부품만(ES256 JWT
+  서명 + .p8 ASN.1 파싱 + 응답 파싱, 전부 단위 테스트), 네트워크는 CLI 한정 — 무네트워크
+  불변식 유지. **라이브 API 검증은 실제 키 확보 시 대기**
+- **앵커 정밀화 결정(dwarfdump)** — atos와 같은 DWARF 라인 테이블을 읽어 추가 베네핏 없음을
+  실측 확인 → 보류. 소스 없는 심볼(OUTLINED_* 등)은 어느 쪽도 못 살림
+- XCTest 52 → 56개
+
 suspect_commit v2 — 범위 정확화 + MCP 툴화:
 
 - **빌드 태그 매핑** — 저장소가 빌드를 태깅(`build/241`·`rel-241`·`241` 형태, 점 버전

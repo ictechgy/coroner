@@ -1,4 +1,5 @@
 import XCTest
+import CryptoKit
 @testable import CoronerCore
 
 final class CoronerTests: XCTestCase {
@@ -119,6 +120,36 @@ final class CoronerTests: XCTestCase {
         XCTAssertTrue(r.exceptionSummary?.contains("EXC_BAD_ACCESS") ?? false)
         XCTAssertGreaterThan(r.frames.count, 10)
         XCTAssertFalse(r.images.isEmpty)
+    }
+
+    func testRealIPSMacOSMonterey() throws {
+        // Real macOS 12 .ips (xsscx/srd research corpus): same body shape as iOS,
+        // but export fields app_version/build_version arrive as EMPTY STRINGS —
+        // they must land as nil (journal key "unknown"), not "".
+        let reports = try TelemetryParser().parseFile(at: fixture("real/macos-monterey-309.ips").path)
+        XCTAssertEqual(reports.count, 1)
+        let r = reports[0]
+        XCTAssertEqual(r.osVersion, "macOS 12.3.1 (21E258)")
+        XCTAssertNil(r.buildVersion, "empty-string build must coalesce to nil")
+        XCTAssertNil(r.appVersion)
+        XCTAssertFalse(r.frames.isEmpty)
+        let store = tempStore()
+        _ = store.ingest(r)
+        XCTAssertEqual(store.clusters.values.first?.occurrences.keys.sorted(), ["unknown"])
+    }
+
+    func testRealMetricKitIOS15Payload() throws {
+        // Real iOS 15.1 crash diagnostic (transcribed from a plist-dump published
+        // on 393698063.github.io): numeric exceptionType/signal, deviceType key,
+        // callStackRootFrames — the iOS 15+ shape so far absent from the corpus.
+        let reports = try TelemetryParser().parseFile(at: fixture("real/metrickit-ios15-real.json").path)
+        XCTAssertEqual(reports.map { $0.kind }, [.crash])
+        let r = reports[0]
+        XCTAssertEqual(r.osVersion, "iPhone OS 15.1 (19B74)")
+        XCTAssertEqual(r.deviceModel, "iPhone13,2")
+        XCTAssertEqual(r.exceptionSummary, "1", "numeric exceptionType stays meaningful")
+        XCTAssertEqual(r.frames.map { $0.binary }, ["ALALivePlayerFramework", "libsystem_pthread.dylib"])
+        XCTAssertNotNil(r.images.first { $0.name == "ALALivePlayerFramework" }?.uuid)
     }
 
     // MARK: - MetricKit parsing
@@ -725,6 +756,64 @@ final class CoronerTests: XCTestCase {
         let store = tempStore()
         _ = store.ingest(report)
         XCTAssertEqual(store.clusters.values.first?.sourceAnchors, ["sessionStore.swift"])
+    }
+
+    // MARK: - App Store Connect (pure parts; live HTTP is CLI-only)
+
+    func testASCJWTSignsAndParsesP8Key() throws {
+        let key = P256.Signing.PrivateKey()
+        // minimal PKCS#8 EC structure wrapping the raw scalar
+        var inner = Data([0x02, 0x01, 0x01, 0x04, 0x20]); inner += key.rawRepresentation
+        let innerSeq = Data([0x30, UInt8(inner.count)]) + inner
+        let octet = Data([0x04, UInt8(innerSeq.count)]) + innerSeq
+        let alg = Data([0x30, 0x13,
+                        0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
+                        0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07])
+        let pkcs8 = Data([0x02, 0x01, 0x00]) + alg + octet
+        let der = Data([0x30, UInt8(pkcs8.count)]) + pkcs8
+        let pem = "-----BEGIN PRIVATE KEY-----\n\(der.base64EncodedString())\n-----END PRIVATE KEY-----\n"
+
+        let parsed = try ASCJWT.privateKey(pem: pem)
+        XCTAssertEqual(parsed.rawRepresentation, key.rawRepresentation)
+
+        let token = ASCJWT.token(issuer: "iss-1", keyID: "KID123", key: key,
+                                 lifetime: 60, now: Date(timeIntervalSince1970: 1_700_000_000))
+        let parts = token.split(separator: ".").map(String.init)
+        XCTAssertEqual(parts.count, 3)
+        func b64d(_ s: String) -> Data? {
+            var t = s.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+            while t.count % 4 != 0 { t += "=" }
+            return Data(base64Encoded: t)
+        }
+        let header = try JSONSerialization.jsonObject(with: b64d(parts[0])!) as! [String: String]
+        XCTAssertEqual(header["alg"], "ES256")
+        XCTAssertEqual(header["kid"], "KID123")
+        let payload = try JSONSerialization.jsonObject(with: b64d(parts[1])!) as! [String: Any]
+        XCTAssertEqual(payload["iss"] as? String, "iss-1")
+        XCTAssertEqual(payload["aud"] as? String, "appstoreconnect-v1")
+        XCTAssertEqual(payload["exp"] as? Int, 1_700_000_060)
+        // signature verifies against the public key (JWS raw 64-byte form)
+        let sig = try P256.Signing.ECDSASignature(rawRepresentation: b64d(parts[2])!)
+        XCTAssertTrue(key.publicKey.isValidSignature(sig, for: Data((parts[0] + "." + parts[1]).utf8)))
+        // garbage PEM is rejected, not crashed on
+        XCTAssertThrowsError(try ASCJWT.privateKey(pem: "-----BEGIN PRIVATE KEY-----\nYWJjZA==\n-----END PRIVATE KEY-----"))
+    }
+
+    func testASCBuildsURLAndDSYMExtraction() {
+        let url = ASCRequests.buildsURL(app: "1234", build: "241")!
+        let s = url.absoluteString
+        XCTAssertTrue(s.hasPrefix("https://api.appstoreconnect.apple.com/v1/builds?"))
+        XCTAssertTrue(s.contains("filter%5Bapp%5D=1234"))
+        XCTAssertTrue(s.contains("filter%5Bversion%5D=241"))
+        XCTAssertTrue(s.contains("include=preReleaseVersion,buildBundles"))
+        let json = Data("""
+        {"data":[{"id":"b1","relationships":{"buildBundles":{"data":[{"id":"bb1"},{"id":"bb2"}]}}}],
+         "included":[{"id":"bb1","type":"buildBundles","attributes":{"includesSymbols":true,"dSYMUrl":"https://example.com/x.zip"}},
+                     {"id":"bb2","type":"buildBundles","attributes":{"includesSymbols":false,"dSYMUrl":"https://example.com/y.zip"}}]}
+        """.utf8)
+        XCTAssertEqual(ASCRequests.dsymURLs(fromBuildsJSON: json), ["https://example.com/x.zip"],
+                       "only bundles with includesSymbols contribute")
+        XCTAssertEqual(ASCRequests.dsymURLs(fromBuildsJSON: Data("{}".utf8)), [])
     }
 
     // MARK: - MCP

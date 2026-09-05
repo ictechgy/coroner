@@ -1,0 +1,42 @@
+{
+  "crashDiagnostics" : [
+    {
+      "version" : "1.0.0",
+      "diagnosticMetaData" : {
+        "appBuildVersion" : "1",
+        "appVersion" : "1.0.0",
+        "deviceType" : "iPhone13,2",
+        "exceptionCode" : 0,
+        "exceptionType" : 1,
+        "osVersion" : "iPhone OS 15.1 (19B74)",
+        "platformArchitecture" : "arm64e",
+        "regionFormat" : "CN",
+        "signal" : 11,
+        "terminationReason" : "Namespace SIGNAL, Code 0x0000000b",
+        "virtualMemoryRegionInfo" : "0 bytes at 0x0000000000000000"
+      },
+      "callStackTree" : {
+        "callStackPerThread" : true,
+        "callStacks" : [
+          {
+            "threadAttributed" : true,
+            "callStackRootFrames" : [
+              {
+                "binaryUUID" : "4DDF5DA5-33D1-377B-B278-0E533E0A24C4",
+                "offsetIntoBinaryTextSegment" : 17762,
+                "sampleCount" : 1,
+                "binaryName" : "ALALivePlayerFramework"
+              },
+              {
+                "binaryUUID" : "24BFFB6D-2D4C-37A4-B288-CA79D2ECFFBD",
+                "offsetIntoBinaryTextSegment" : 16332,
+                "sampleCount" : 1,
+                "binaryName" : "libsystem_pthread.dylib"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

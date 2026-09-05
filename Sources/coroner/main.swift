@@ -1,4 +1,5 @@
 import CoronerCore
+import CryptoKit
 import Foundation
 
 let version = "0.1.0"
@@ -19,6 +20,9 @@ USAGE:
     coroner [--store <dir>] mark <cluster-id> --status open|known|fixed-in
     coroner [--store <dir>] suspect <cluster-id> [--repo <path>] [--window-days 14]
                                    # estimate suspect_commit (git × source anchors)
+    coroner asc-dsym --app <id> --build <n> [--platform IOS] [--out <dir>]
+                                   # download dSYMs from App Store Connect
+                                   # (needs CORONER_ASC_KEY_ID/ISSUER_ID/KEY_PATH)
     coroner [--store <dir>] mcp        # MCP server over stdio (7 tools)
 
 OPTIONS:
@@ -90,6 +94,8 @@ case "mark":
     mark(rest)
 case "suspect":
     suspect(rest)
+case "asc-dsym":
+    ascDsym(rest)
 case "mcp":
     mcp()
 default:
@@ -272,8 +278,80 @@ func mcp() {
     CoronerMCP.engine(store: store, version: version).serve()
 }
 
-func suspect(_ args: [String]) {
-    guard let id = args.first(where: { !$0.hasPrefix("--") }) else {
+func ascDsym(_ args: [String]) {
+    let opts = flagValues(args, flags: ["--app", "--build", "--platform", "--out"])
+    guard let app = opts["--app"], let build = opts["--build"] else {
+        fail("asc-dsym needs --app <ASC numeric app id> and --build <build number>")
+    }
+    let env = ProcessInfo.processInfo.environment
+    guard let keyID = env["CORONER_ASC_KEY_ID"],
+          let issuer = env["CORONER_ASC_ISSUER_ID"],
+          let keyPath = env["CORONER_ASC_KEY_PATH"] else {
+        fail("set CORONER_ASC_KEY_ID, CORONER_ASC_ISSUER_ID, CORONER_ASC_KEY_PATH (App Store Connect API key)")
+    }
+    let key: P256.Signing.PrivateKey
+    do {
+        key = try ASCJWT.privateKey(pem: try String(contentsOfFile: keyPath, encoding: .utf8))
+    } catch {
+        fail("\(error)")
+    }
+    guard let url = ASCRequests.buildsURL(app: app, build: build,
+                                          platform: opts["--platform"] ?? "IOS") else {
+        fail("could not build the request URL")
+    }
+    let token = ASCJWT.token(issuer: issuer, keyID: keyID, key: key)
+    guard let json = httpGet(url: url, bearer: token) else {
+        fail("App Store Connect request failed — check the key, app id \(app), build \(build)")
+    }
+    let urls = ASCRequests.dsymURLs(fromBuildsJSON: json)
+    guard !urls.isEmpty else {
+        print("no dSYM found for build \(build) (symbols may not be processed yet — retry later)")
+        return
+    }
+    let outDir = URL(fileURLWithPath: opts["--out"] ?? "dsyms-\(build)", isDirectory: true)
+    try? FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+    var ok = 0
+    for (i, u) in urls.enumerated() {
+        guard let zipURL = URL(string: u), let zip = httpGetRaw(url: zipURL) else { continue }
+        let target = outDir.appendingPathComponent("bundle-\(i)")
+        try? FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("coroner-\(UUID().uuidString).zip")
+        try? zip.write(to: tmp)
+        // ditto preserves dSYM bundle structure and symlinks where plain unzip may not
+        _ = ProcessRunner().run("/usr/bin/ditto", ["-x", "-k", tmp.path, target.path])
+        try? FileManager.default.removeItem(at: tmp)
+        ok += 1
+    }
+    print("downloaded \(ok)/\(urls.count) dSYM bundle(s) → \(masked(outDir.path))")
+    print("next: coroner --dsym \(outDir.path) ingest <telemetry-dir>")
+}
+
+func httpGet(url: URL, bearer: String) -> Data? {
+    var req = URLRequest(url: url, timeoutInterval: 60)
+    req.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+    req.setValue("application/json", forHTTPHeaderField: "Accept")
+    return httpGetRaw(request: req)
+}
+
+func httpGetRaw(url: URL) -> Data? {
+    var req = URLRequest(url: url, timeoutInterval: 120)
+    return httpGetRaw(request: req)
+}
+
+func httpGetRaw(request: URLRequest) -> Data? {
+    var out: Data? = nil
+    let sem = DispatchSemaphore(value: 0)
+    URLSession.shared.dataTask(with: request) { data, resp, _ in
+        if let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) {
+            out = data
+        }
+        sem.signal()
+    }.resume()
+    _ = sem.wait(timeout: .now() + 130)
+    return out
+}
+
+func suspect(_ args: [String]) {    guard let id = args.first(where: { !$0.hasPrefix("--") }) else {
         fail("suspect needs a cluster id (see: coroner list)")
     }
     let opts = flagValues(args, flags: ["--repo", "--window-days"])

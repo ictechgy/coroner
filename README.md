@@ -95,6 +95,10 @@ coroner --dsym ~/dSYMs/ ingest ~/Downloads/crashes/     # 2026-09-04 빌드의 d
 
 - `.ips` 크래시: `addr = image.base + imageOffset`, `atos -o <dSYM> -l <base>`
 - MetricKit: `addr = textSegmentVMAddr(기본 0) + offsetIntoBinaryTextSegment`
+- App Store Connect(비트코드 재컴파일 빌드): `coroner asc-dsym --app <ASC 앱 id> --build <빌드번호>` —
+  환경변수 `CORONER_ASC_KEY_ID`·`CORONER_ASC_ISSUER_ID`·`CORONER_ASC_KEY_PATH`(.p8)로
+  공식 ASC API(builds → buildBundles → dSYMUrl)에서 dSYM zip을 내려받아 푼다. ES256 JWT 서명은
+  CryptoKit 무의존 구현. **실API 라이브 검증은 실제 키 확보 시 대기 중**
 
 ## MCP 서버 (에이전트 연결)
 
@@ -212,9 +216,10 @@ internal/**
 - **suspect_commit v0.3 조기 구현**: 기획서는 indexstore-db 프레임→소스 앵커를 예상했으나 1차는
   심볼리케이션의 `sourceFile`(atos)을 앵커로 사용 — unsymbolicated 클러스터는 정직하게 빈 답.
   MCP 툴은 미제공(CLI `suspect`만), indexstore-db 연동은 후속
-- **v0.3 미포함**: App Store Connect API dSYM 자동 다운로드 (코어 무네트워크 불변식과 충돌하는
-  설계 — 키 관리 설계부터 다시. CI 게이트는 시점 앞당겨 구현 완료)
-- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 52개 테스트 전부 로컬 실행
+- **ASC dSYM 다운로드 구현됨**(`asc-dsym`): 단 **라이브 API 검증은 실제 ASC 키 확보 전까지
+  대기**(JWT 서명·요청 생성·응답 파싱은 단위 테스트로 검증). 네트워크 호출은 코어가 아닌 CLI에만
+  존재해 무네트워크 불변식 유지
+- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 56개 테스트 전부 로컬 실행
 - **실데이터 코퍼스**: `Tests/coronerTests/Fixtures/real/` — 공개된 실제 텔레메트리(iOS 16 `.ips`, iOS 14 MetricKit 페이로드)로 포맷 변형을 잠근 회귀 테스트
 
 ## 로드맵
@@ -230,7 +235,7 @@ v1.x  스택 유사도 클러스터링 옵션(ReBucket식 / GPTrace식 임베딩
 ## 개발
 
 ```bash
-make test        # swift test — 52 tests, 전부 로컬(실 dSYM·네트워크 불요), 수 초
+make test        # swift test — 56 tests, 전부 로컬(실 dSYM·네트워크 불요), 수 초
 make release
 ```
 

@@ -109,11 +109,13 @@ public struct TelemetryParser {
         }
 
         var r = ParsedReport(kind: .crash, sourcePath: sourcePath)
-        r.appVersion = body["app_version"] as? String
-        r.buildVersion = body["build_version"] as? String
+        // Real macOS exports carry empty strings for missing versions — treat
+        // them as absent so the journal doesn't grow "" build keys.
+        r.appVersion = Self.nonEmpty(body["app_version"] as? String)
+        r.buildVersion = Self.nonEmpty(body["build_version"] as? String)
         r.timestamp = Self.date(any: body["timestamp"])
-        r.deviceModel = body["deviceModel"] as? String ?? body["device_model"] as? String
-        r.osVersion = body["os_version"] as? String
+        r.deviceModel = Self.nonEmpty(body["deviceModel"] as? String ?? body["device_model"] as? String)
+        r.osVersion = Self.nonEmpty(body["os_version"] as? String)
 
         if let exc = body["exception"] as? [String: Any] {
             let type = exc["type"] as? String
@@ -189,11 +191,11 @@ public struct TelemetryParser {
     private func metricKitReport(diag: [String: Any], kind: DiagnosticKind, sourcePath: String) -> ParsedReport {
         var r = ParsedReport(kind: kind, sourcePath: sourcePath)
         let meta = diag["diagnosticMetaData"] as? [String: Any]
-        r.buildVersion = meta?["appBuildVersion"] as? String
-        r.appVersion = meta?["appVersion"] as? String
-        r.osVersion = meta?["osVersion"] as? String
+        r.buildVersion = Self.nonEmpty(meta?["appBuildVersion"] as? String)
+        r.appVersion = Self.nonEmpty(meta?["appVersion"] as? String)
+        r.osVersion = Self.nonEmpty(meta?["osVersion"] as? String)
         // Apple docs say deviceModel; real payloads say deviceType.
-        r.deviceModel = (meta?["deviceModel"] ?? meta?["deviceType"]) as? String
+        r.deviceModel = Self.nonEmpty((meta?["deviceModel"] ?? meta?["deviceType"]) as? String)
         r.timestamp = Self.date(any: diag["timeStampBegin"]) ?? Self.date(any: diag["timeStampEnd"])
 
         // exceptionType is a string in docs but a number in real payloads.
@@ -268,6 +270,11 @@ public struct TelemetryParser {
 
     private func json(_ data: Data) -> [String: Any]? {
         (try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])) as? [String: Any]
+    }
+
+    static func nonEmpty(_ s: String?) -> String? {
+        guard let s, !s.isEmpty else { return nil }
+        return s
     }
 
     static func normalizeUUID(_ s: String?) -> String? {
