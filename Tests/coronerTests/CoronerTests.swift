@@ -57,6 +57,22 @@ final class CoronerTests: XCTestCase {
         XCTAssertEqual(reports[0].frames[0].offset, 2)
     }
 
+    func testIPSPreSymbolicatedFramesCarrySourceFile() throws {
+        // macOS writes sourceFile/sourceLine into frames when a dSYM was found
+        // at capture time (discovered via the selfcheck harness on a real crash).
+        let body = """
+        {"faultingThread":0,"threads":[{"frames":[{"imageIndex":0,"imageOffset":870,"symbol":"boom()","sourceFile":"/Users/x/repo/main.swift","sourceLine":6}]}],"usedImages":[{"name":"App","base":0}]}
+        """
+        let reports = try TelemetryParser().parse(data: Data(body.utf8), sourcePath: "inline")
+        XCTAssertEqual(reports[0].frames[0].symbol, "boom()")
+        XCTAssertEqual(reports[0].frames[0].sourceFile, "/Users/x/repo/main.swift")
+        XCTAssertEqual(reports[0].frames[0].line, 6)
+        // anchors must use the basename, never the absolute path (privacy)
+        let store = tempStore()
+        _ = store.ingest(reports[0])
+        XCTAssertEqual(store.clusters.values.first?.sourceAnchors, ["main.swift"])
+    }
+
     // MARK: - Real-world corpus (Fixtures/real — see README "실데이터 검증")
 
     func testRealIPSIOS16PrettyPrintedBody() throws {
@@ -816,6 +832,12 @@ final class CoronerTests: XCTestCase {
         XCTAssertTrue(key.publicKey.isValidSignature(sig, for: Data((parts[0] + "." + parts[1]).utf8)))
         // garbage PEM is rejected, not crashed on
         XCTAssertThrowsError(try ASCJWT.privateKey(pem: "-----BEGIN PRIVATE KEY-----\nYWJjZA==\n-----END PRIVATE KEY-----"))
+        // openssl SEC1 form: a preceding EC PARAMETERS block + EC PRIVATE KEY block
+        var sec1 = Data([0x02, 0x01, 0x01, 0x04, 0x20]); sec1 += key.rawRepresentation
+        let sec1Der = Data([0x30, UInt8(sec1.count)]) + sec1
+        let sec1Pem = "-----BEGIN EC PARAMETERS-----\nBggqhkjOPQMBBw==\n-----END EC PARAMETERS-----\n"
+            + "-----BEGIN EC PRIVATE KEY-----\n\(sec1Der.base64EncodedString())\n-----END EC PRIVATE KEY-----\n"
+        XCTAssertEqual(try ASCJWT.privateKey(pem: sec1Pem).rawRepresentation, key.rawRepresentation)
     }
 
     func testASCBuildsURLAndDSYMExtraction() {

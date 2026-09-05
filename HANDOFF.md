@@ -1,7 +1,7 @@
 # HANDOFF — 다음 세션 인수인계
 
 - **작성일**: 2026-09-06 (3차 갱신) · **기준**: main
-- **상태**: **v0.2.0 공개 배포됨**(2026-09-06, github.com/ictechgy/coroner). 테스트 57개 그린.
+- **상태**: **v0.2.0 공개 배포됨**(2026-09-06, github.com/ictechgy/coroner). 테스트 58개 그린.
 
 ## 현재까지 완료된 것 (믿어도 되는 상태)
 
@@ -26,7 +26,11 @@ v0.1.0 원본(`44e53aa`~`e32142b`) 위에 이어서:
 
 ## 다음 세션 할 일 (우선순위)
 
-### P0 — 실데이터 검증 (계속 — 외부 입력 필요)
+### P0 — 실데이터 검증 (계속)
+**5차 완료(2026-09-06)**: `make selfcheck` — 실제 크래시 루프 완전 검증(실 .ips→심볼→git suspect
+커밋 지목 PASS). 이 과정에서 **프리심볼 `.ips` sourceFile/sourceLine 변형** 발견·수정(0.3
+Unreleased 참조). ASC는 목서버로 라이브 검증 PASS(Apple 엔드포인트만 실측 대기).
+MetricKit 실측은 여전히 자기 iOS 앱 하루 운영이 최고 가치.
 **4차 완료(2026-09-06)**: 로컬 실측 스윕 — `~/Library/Logs/DiagnosticReports`·
 `/Library/Logs/DiagnosticReports`의 실제 `.ips` 589개(원본 비커밋, 검증만). 486개 파싱
 성공(95.7%), jetsam 원본 확보·"인식된 스킵" 처리 구현(CHANGELOG 참조), 훼손 파일은 정확히
@@ -37,8 +41,8 @@ v0.1.0 원본(`44e53aa`~`e32142b`) 위에 이어서:
 2. 변형 발견 → fixture 잠그고 파서 확장 + `Fixtures/real/README.md` 출처 표 갱신.
 
 ### P1 — suspect_commit 고도화 (해자 1의 깊이 파기)
-1. **라이브 ASC 검증** — 사용자가 ASC API 키 제공 시 `asc-dsym` 실동작 확인(환경변수 3종,
-   README 심볼리케이션 섹션 참조). 실패 양상(dSYMUrl 미포함·비트코드 아님)별 메시지 다듬기.
+1. **ASC 실엔드포인트 검증** — 목서버 검증은 완료(Examples/asc-mock). 남은 것은 실제
+   ASC API 키로 Apple 엔드포인트 1회 호출 확인뿐(환경변수 3종+CORONER_ASC_API_BASE).
 2. **indexstore-db** — Xcode 미포함(실측). SourceKit-LSP 번들 탐지 시에만 켜는 경로가 유일.
    베네핏 재평가 전까지 atos sourceFile 앵커 유지.
 3. 아이디어 후보: dSYM UUID→커밋 빌드 태그 연결(suspect 범위 정확화 심화), digest에
@@ -53,7 +57,7 @@ v0.1.0 원본(`44e53aa`~`e32142b`) 위에 이어서:
 - 저장 포맷 JSON(기획서 YAML) — 의존성 0 의도된 편차. 저널 스키마는 호환 인터페이스 —
   필드 추가는 가산적으로만(sourceAnchors·suspects가 그 예).
 - `Fixtures/real/`에는 공개 게시물 실측만 — 비공개 유저 텔레메트리 금지(AGENTS 6조).
-- 테스트 수 바꾸면 README·AGENTS "57" 표기 3곳 동시 갱신.
+- 테스트 수 바꾸면 README·AGENTS "58" 표기 3곳 동시 갱신.
 - 스텁 러너가 외부 CLI 계약(mdfind 대시·git 인자)을 가릴 수 있음 — 계약 테스트 패턴을
   새 외부 연동마다 추가할 것(testSpotlightQueryUsesDashedUUID·testBuildTagRange… 참조).
 - 전역 플래그(`--store` 등)는 명령 앞. `new-since` exit 1은 CI 게이트 정상 동작.

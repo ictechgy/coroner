@@ -30,6 +30,9 @@ coroner는 이 파이프라인의 소비 측(개발 기기)을 채운다. Sentry
 
 ## 설치
 
+brew install ictechgy/tap/coroner    # Homebrew tap — 소스 빌드(Xcode 필요)
+
+
 ```bash
 git clone <this-repo> && cd coroner
 make release            # swift build -c release
@@ -224,7 +227,7 @@ internal/**
 - **ASC dSYM 다운로드 구현됨**(`asc-dsym`): 단 **라이브 API 검증은 실제 ASC 키 확보 전까지
   대기**(JWT 서명·요청 생성·응답 파싱은 단위 테스트로 검증). 네트워크 호출은 코어가 아닌 CLI에만
   존재해 무네트워크 불변식 유지
-- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 57개 테스트 전부 로컬 실행
+- **테스트의 심볼리케이션**: atos·dSYM 의존을 프로토콜 뒤로 격리 — 실 dSYM 없이도 58개 테스트 전부 로컬 실행
 - **실데이터 코퍼스**: `Tests/coronerTests/Fixtures/real/` — 공개된 실제 텔레메트리(iOS 16 `.ips`, iOS 14 MetricKit 페이로드)로 포맷 변형을 잠근 회귀 테스트
 
 ## 로드맵
@@ -240,7 +243,9 @@ v1.x  스택 유사도 클러스터링 옵션(ReBucket식 / GPTrace식 임베딩
 ## 개발
 
 ```bash
-make test        # swift test — 57 tests, 전부 로컬(실 dSYM·네트워크 불요), 수 초
+make test        # swift test — 58 tests, 전부 로컬(실 dSYM·네트워크 불요), 수 초
+make selfcheck   # 진짜 크래시→실 .ips→dSYM 심볼→git suspect e2e 자가 검증 (atos·dsymutil·git 사용)
+./Examples/asc-mock/verify.sh   # asc-dsym 전 사슬을 로컬 목서버로 라이브 검증
 make release
 ```
 

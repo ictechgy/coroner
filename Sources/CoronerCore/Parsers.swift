@@ -162,11 +162,15 @@ public struct TelemetryParser {
         let idx = (f["imageIndex"] as? NSNumber)?.intValue
         let binary = idx.flatMap { images.indices.contains($0) ? images[$0].name : nil }
         let offset = (f["imageOffset"] as? NSNumber)?.uint64Value
+        // macOS pre-symbolicates frames when it can find a local dSYM at capture
+        // time — sourceFile/sourceLine ride along and must survive the parse.
         return RawFrame(
             binary: binary,
             offset: offset,
             symbol: f["symbol"] as? String,
-            symbolLocation: (f["symbolLocation"] as? NSNumber)?.intValue
+            symbolLocation: (f["symbolLocation"] as? NSNumber)?.intValue,
+            sourceFile: f["sourceFile"] as? String,
+            line: (f["sourceLine"] as? NSNumber)?.intValue
         )
     }
 

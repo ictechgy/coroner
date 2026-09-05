@@ -306,8 +306,11 @@ func ascDsym(_ args: [String]) {
     } catch {
         fail("\(error)")
     }
+    // CORONER_ASC_API_BASE overrides the endpoint (verification against a
+    // local mock; defaults to Apple's).
+    let base = env["CORONER_ASC_API_BASE"].flatMap(URL.init(string:)) ?? ASCRequests.apiBase
     guard let url = ASCRequests.buildsURL(app: app, build: build,
-                                          platform: opts["--platform"] ?? "IOS") else {
+                                          platform: opts["--platform"] ?? "IOS", base: base) else {
         fail("could not build the request URL")
     }
     let token = ASCJWT.token(issuer: issuer, keyID: keyID, key: key)

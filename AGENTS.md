@@ -13,9 +13,10 @@ iOS 프로덕션 텔레메트리(`.ips` + MetricKit)를 로컬에서 수집·심
 
 ```bash
 swift build            # 증분 빌드, 수 초
-swift test             # 57개 XCTest — 실 dSYM·네트워크 없이 전부 로컬. 커밋 전 필수
+swift test             # 58개 XCTest — 실 dSYM·네트워크 없이 전부 로컬. 커밋 전 필수
 swift build -c release
 make demo              # /tmp에서 end-to-end 데모 (ingest → new-since → top)
+make selfcheck   # 실제 크래시→.ips→심볼→suspect 자가 검증 (atos·dsymutil·git 사용)
 ```
 
 주의: 셸 작업 디렉터리가 다른 저장소로 남아 있으면 `swift test`가 엉뚱한 패키지를

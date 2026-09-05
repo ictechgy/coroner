@@ -2,7 +2,7 @@ SWIFTC = swift
 BIN = .build/release/coroner
 PREFIX ?= /usr/local
 
-.PHONY: build test release install clean demo
+.PHONY: build test release install clean demo selfcheck
 
 build:
 	$(SWIFTC) build
@@ -16,6 +16,9 @@ release:
 install: release
 	install -d $(DESTDIR)$(PREFIX)/bin
 	install $(BIN) $(DESTDIR)$(PREFIX)/bin/coroner
+
+selfcheck: release
+	@$(CURDIR)/Examples/selfcheck/run.sh $(CURDIR)
 
 demo: release
 	@rm -rf /tmp/coroner-demo && mkdir -p /tmp/coroner-demo

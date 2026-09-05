@@ -16,25 +16,38 @@ public enum ASCError: Error, CustomStringConvertible {
 /// parsing. The actual HTTP fetch lives in the CLI.
 public enum ASCJWT {
 
-    /// Parses a `.p8` key (PEM, PKCS#8 EC) into a P-256 private key.
-    /// Zero-dependency ASN.1 walk: PKCS#8 EC keys embed the 32-byte scalar in
-    /// an OCTET STRING (04 20 …) — scan for that marker and accept the first
-    /// candidate that is a valid scalar.
+    /// Parses a `.p8` key (PEM, PKCS#8 EC; openssl's SEC1 two-block form also
+    /// accepted) into a P-256 private key. Zero-dependency ASN.1 walk: PKCS#8
+    /// and SEC1 both embed the 32-byte scalar in an OCTET STRING (04 20 …) —
+    /// scan each PEM block for that marker and accept the first candidate that
+    /// is a valid scalar.
     public static func privateKey(pem: String) throws -> P256.Signing.PrivateKey {
-        let body = pem.split(separator: "\n")
-            .filter { !$0.hasPrefix("-----") }
-            .joined()
-        guard !body.isEmpty, let der = Data(base64Encoded: Data(body.utf8)) else {
-            throw ASCError.invalidKey("PEM body is not base64")
+        var blocks: [Data] = []
+        var current: [String] = []
+        func flush() {
+            guard !current.isEmpty else { return }
+            if let der = Data(base64Encoded: Data(current.joined().utf8)) {
+                blocks.append(der)
+            }
+            current = []
         }
-        guard der.count >= 34 else { throw ASCError.invalidKey("too short") }
-        for i in 0...(der.count - 34) {
-            let start = der.startIndex + i
-            let lenByte = der[der.index(after: start)]
-            guard der[start] == 0x04, lenByte == 0x20 else { continue }
-            let scalar = der[der.index(start, offsetBy: 2)..<der.index(start, offsetBy: 34)]
-            if let key = try? P256.Signing.PrivateKey(rawRepresentation: scalar) {
-                return key
+        for line in pem.split(separator: "\n") {
+            if line.hasPrefix("-----") {
+                flush()
+            } else if !line.trimmingCharacters(in: .whitespaces).isEmpty {
+                current.append(String(line))
+            }
+        }
+        flush()
+        guard !blocks.isEmpty else { throw ASCError.invalidKey("no PEM block decoded") }
+        for der in blocks where der.count >= 34 {
+            for i in 0...(der.count - 34) {
+                let start = der.startIndex + i
+                guard der[start] == 0x04, der[der.index(after: start)] == 0x20 else { continue }
+                let scalar = der[der.index(start, offsetBy: 2)..<der.index(start, offsetBy: 34)]
+                if let key = try? P256.Signing.PrivateKey(rawRepresentation: scalar) {
+                    return key
+                }
             }
         }
         throw ASCError.invalidKey("no P-256 scalar found")
