@@ -102,13 +102,28 @@ func ingest(_ args: [String]) {
     var updatedClusters = 0
     var unsymbolicated = 0
     var parseFailures = 0
+    var alreadyIngested = 0
 
     for f in files {
-        guard let reports = try? parser.parseFile(at: f) else {
+        let contents: Data
+        do {
+            contents = try Data(contentsOf: URL(fileURLWithPath: f))
+        } catch {
+            parseFailures += 1
+            print("skip (unreadable): \(masked(f))")
+            continue
+        }
+        let fingerprint = Store.fingerprint(contents)
+        if store.hasSeen(fingerprint) {
+            alreadyIngested += 1
+            continue
+        }
+        guard let reports = try? parser.parse(data: contents, sourcePath: f) else {
             parseFailures += 1
             print("skip (unrecognized): \(masked(f))")
             continue
         }
+        guard !reports.isEmpty else { continue }
         for var report in reports {
             report = symbolicator.symbolicate(report: report)
             let existed = store.clusters.values.contains { $0.signature == Signature.of(frames: report.frames) }
@@ -118,6 +133,7 @@ func ingest(_ args: [String]) {
             if existed { updatedClusters += 1 } else { newClusters += 1 }
             if !cluster.symbolicated { unsymbolicated += 1 }
         }
+        store.markSeen(fingerprint)
     }
 
     let kinds = DiagnosticKind.allCases.compactMap { k -> String? in
@@ -128,6 +144,7 @@ func ingest(_ args: [String]) {
     if unsymbolicated > 0 {
         print("note: \(unsymbolicated) report(s) stayed unsymbolicated (dSYM not found — pass --dsym or install via Spotlight)")
     }
+    if alreadyIngested > 0 { print("note: \(alreadyIngested) file(s) skipped — identical content already in the journal") }
     if parseFailures > 0 { print("note: \(parseFailures) unrecognizable file(s)") }
 }
 

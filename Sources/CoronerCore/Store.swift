@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 public enum StoreError: Error, CustomStringConvertible {
     case notFound(String)
@@ -12,19 +13,24 @@ public enum StoreError: Error, CustomStringConvertible {
     }
 }
 
-/// Directory-backed store: one JSON file per cluster report under `<base>/reports/`.
-/// The journal (first_seen/last_seen, per-build occurrences) is derived at ingest time.
+/// Directory-backed store: one JSON file per cluster report under `<base>/reports/`,
+/// plus an ingest ledger (`seen.json`) of file-content fingerprints so re-running
+/// ingest on the same files cannot double-count occurrences.
 public final class Store {
 
     public let baseDir: URL
     public let reportsDir: URL
     public private(set) var clusters: [String: ClusterReport] = [:]
+    public private(set) var seenFingerprints: Set<String> = []
+    private let seenFileURL: URL
 
     public init(baseDir: URL) {
         self.baseDir = baseDir
         self.reportsDir = baseDir.appendingPathComponent("reports", isDirectory: true)
+        self.seenFileURL = baseDir.appendingPathComponent("seen.json")
         try? FileManager.default.createDirectory(at: reportsDir, withIntermediateDirectories: true)
         loadAll()
+        loadSeen()
     }
 
     // MARK: - Persistence
@@ -35,10 +41,17 @@ public final class Store {
         guard let files = try? fm.contentsOfDirectory(atPath: reportsDir.path) else { return }
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .iso8601
+        var unreadable = 0
         for f in files where f.hasSuffix(".json") {
             guard let data = try? Data(contentsOf: reportsDir.appendingPathComponent(f)),
-                  let c = try? dec.decode(ClusterReport.self, from: data) else { continue }
+                  let c = try? dec.decode(ClusterReport.self, from: data) else {
+                unreadable += 1
+                continue
+            }
             clusters[c.id] = c
+        }
+        if unreadable > 0 {
+            warn("skipped \(unreadable) unreadable journal file(s) under \(reportsDir.path)")
         }
     }
 
@@ -47,9 +60,46 @@ public final class Store {
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         enc.dateEncodingStrategy = .iso8601
-        if let data = try? enc.encode(c) {
-            try? data.write(to: reportsDir.appendingPathComponent("\(c.id).json"), options: .atomic)
+        do {
+            let data = try enc.encode(c)
+            try data.write(to: reportsDir.appendingPathComponent("\(c.id).json"), options: .atomic)
+        } catch {
+            warn("failed to persist cluster \(c.id): \(error)")
         }
+    }
+
+    // MARK: - Ingest ledger (dedupe)
+
+    /// Content fingerprint for one telemetry file. Deterministic and unsalted on
+    /// purpose — the ledger only needs to recognize identical bytes, not hide them.
+    public static func fingerprint(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    public func hasSeen(_ fingerprint: String) -> Bool {
+        seenFingerprints.contains(fingerprint)
+    }
+
+    public func markSeen(_ fingerprint: String) {
+        guard seenFingerprints.insert(fingerprint).inserted else { return }
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        do {
+            let data = try enc.encode(seenFingerprints.sorted())
+            try data.write(to: seenFileURL, options: .atomic)
+        } catch {
+            warn("failed to persist ingest ledger: \(error)")
+        }
+    }
+
+    private func loadSeen() {
+        guard let data = try? Data(contentsOf: seenFileURL),
+              let list = try? JSONDecoder().decode([String].self, from: data) else { return }
+        seenFingerprints = Set(list)
+    }
+
+    private func warn(_ message: String) {
+        FileHandle.standardError.write(Data(("coroner: warning: " + message + "\n").utf8))
     }
 
     // MARK: - Ingest

@@ -237,6 +237,20 @@ final class CoronerTests: XCTestCase {
         XCTAssertEqual(b.clusters.count, 1)
     }
 
+    func testIngestLedgerDeduplicatesIdenticalFiles() throws {
+        let store = tempStore()
+        let data = try Data(contentsOf: fixture("crash-new-142.ips"))
+        let fp = Store.fingerprint(data)
+        XCTAssertFalse(store.hasSeen(fp))
+        store.markSeen(fp)
+        XCTAssertTrue(store.hasSeen(fp))
+        // deterministic for identical bytes, distinct for different bytes
+        XCTAssertEqual(Store.fingerprint(data), fp)
+        XCTAssertNotEqual(Store.fingerprint(Data("different".utf8)), fp)
+        // persists across instances — re-ingest of the same file is a no-op
+        XCTAssertTrue(Store(baseDir: store.baseDir).hasSeen(fp))
+    }
+
     func testFirstSeenBackfillsOnOutOfOrderIngest() {
         let store = tempStore()
         ingest(store, "crash-new-143.ips")   // newer build first
@@ -354,12 +368,16 @@ final class CoronerTests: XCTestCase {
 
         struct StubRunner: ProcessRunning {
             func run(_ launchPath: String, _ args: [String]) -> String {
-                "SessionStore.dequeue (in DemoApp) (sessionStore.swift:88)\nSessionStore.flush (in DemoApp)"
+                // The locator verifies the dSYM UUID with dwarfdump before atos runs.
+                launchPath.hasSuffix("dwarfdump")
+                    ? "UUID: 11111111-2222-3333-4444-555555555555 (arm64) DemoApp"
+                    : "SessionStore.dequeue (in DemoApp) (sessionStore.swift:88)\nSessionStore.flush (in DemoApp)"
             }
         }
 
         var report = try! TelemetryParser().parseFile(at: fixture("crash-new-142.ips").path)[0]
-        let symbolicator = Symbolicator(locator: SearchPathLocator(paths: [tmp.path]), runner: StubRunner())
+        let stub = StubRunner()
+        let symbolicator = Symbolicator(locator: SearchPathLocator(paths: [tmp.path], runner: stub), runner: stub)
         report = symbolicator.symbolicate(report: report)
         XCTAssertEqual(report.frames[0].symbol, "SessionStore.dequeue")
         XCTAssertEqual(report.frames[0].sourceFile, "sessionStore.swift")
@@ -378,6 +396,58 @@ final class CoronerTests: XCTestCase {
         let symbolicator = Symbolicator(locator: SearchPathLocator(paths: []))
         report = symbolicator.symbolicate(report: report)
         XCTAssertNil(report.frames[0].symbol)
+    }
+
+    func testSpotlightQueryUsesDashedUUID() {
+        // Contract test (empirically verified against real Spotlight): the metadata
+        // attribute only matches the canonical dashed form, so the query built from
+        // a normalized (dash-stripped) UUID must restore 8-4-4-4-12 or find nothing.
+        final class RecordingRunner: ProcessRunning {
+            var queries: [[String]] = []
+            func run(_ launchPath: String, _ args: [String]) -> String {
+                queries.append(args)
+                return ""
+            }
+        }
+        let runner = RecordingRunner()
+        let locator = SpotlightLocator(runner: runner)
+        let uuid = "11111111222233334444555555555555"
+        XCTAssertNil(locator.locate(binaryName: "App", uuid: uuid))
+        XCTAssertEqual(runner.queries.count, 1)
+        XCTAssertTrue(runner.queries[0][0].contains("11111111-2222-3333-4444-555555555555"),
+                      "Spotlight never matches a dash-stripped UUID")
+        // memoized: a second lookup for the same UUID must not re-run mdfind
+        _ = locator.locate(binaryName: "App", uuid: uuid)
+        XCTAssertEqual(runner.queries.count, 1)
+        // non-32-hex input (already dashed or odd) is used as-is
+        XCTAssertEqual(SpotlightLocator.dashed("abc"), "abc")
+    }
+
+    func testSearchPathLocatorVerifiesUUID() throws {
+        let tmp = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("coroner-dsym-uuid-\(UUID().uuidString)", isDirectory: true)
+        let dsym = tmp.appendingPathComponent("App.dSYM")
+        try FileManager.default.createDirectory(at: dsym, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+
+        struct UUIDStub: ProcessRunning {
+            let line: String
+            func run(_ launchPath: String, _ args: [String]) -> String { line }
+        }
+
+        let uuid = "11111111222233334444555555555555"
+        let matching = SearchPathLocator(paths: [tmp.path],
+                                         runner: UUIDStub(line: "UUID: 11111111-2222-3333-4444-555555555555 (arm64) App"))
+        XCTAssertEqual(matching.locate(binaryName: "App", uuid: uuid), dsym.path)
+
+        // same name, different build → rejected, not silently mis-symbolicated
+        let stale = SearchPathLocator(paths: [tmp.path],
+                                      runner: UUIDStub(line: "UUID: AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE (arm64) App"))
+        XCTAssertNil(stale.locate(binaryName: "App", uuid: uuid))
+
+        // no UUID in the report → nothing to verify against, candidate stays usable
+        let unknown = SearchPathLocator(paths: [tmp.path], runner: UUIDStub(line: ""))
+        XCTAssertEqual(unknown.locate(binaryName: "App", uuid: nil), dsym.path)
     }
 
     // MARK: - MCP

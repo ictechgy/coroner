@@ -96,7 +96,7 @@ public final class SpotlightLocator: DSymLocating {
     public func locate(binaryName: String, uuid: String?) -> String? {
         guard let uuid, !uuid.isEmpty else { return nil }
         if let cached = cache[uuid] { return cached }
-        let output = runner.run("/usr/bin/mdfind", ["com_apple_xcode_dsym_uuids == \(uuid)"])
+        let output = runner.run("/usr/bin/mdfind", ["com_apple_xcode_dsym_uuids == \(Self.dashed(uuid))"])
         var hit: String?
         for line in output.split(separator: "\n") {
             let p = String(line)
@@ -108,19 +108,53 @@ public final class SpotlightLocator: DSymLocating {
         cache[uuid] = hit
         return hit
     }
+
+    /// Spotlight indexes the canonical dashed form (verified empirically: a
+    /// dash-stripped UUID returns zero results), so restore 8-4-4-4-12 before querying.
+    static func dashed(_ normalized: String) -> String {
+        guard normalized.count == 32, normalized.allSatisfy(\.isHexDigit) else { return normalized }
+        var parts: [String] = []
+        var start = normalized.startIndex
+        for len in [8, 4, 4, 4, 12] {
+            let end = normalized.index(start, offsetBy: len)
+            parts.append(String(normalized[start..<end]))
+            start = end
+        }
+        return parts.joined(separator: "-")
+    }
 }
 
-/// Explicit `--dsym` search paths; matches `<binaryName>.dSYM` directories (UUID check left to the caller's atos result).
+/// Explicit `--dsym` search paths; matches `<binaryName>.dSYM` directories.
+/// When the report carries a UUID the candidate is verified via dwarfdump — a
+/// same-named dSYM from a different build would make atos fabricate symbols.
 public final class SearchPathLocator: DSymLocating {
     private let paths: [String]
-    public init(paths: [String]) { self.paths = paths }
+    private let runner: ProcessRunning
+    private var cache: [String: String?] = [:]
+
+    public init(paths: [String], runner: ProcessRunning = ProcessRunner()) {
+        self.paths = paths
+        self.runner = runner
+    }
 
     public func locate(binaryName: String, uuid: String?) -> String? {
+        let key = "\(binaryName)#\(uuid ?? "-")"
+        if let cached = cache[key] { return cached }
+        let hit = resolve(binaryName: binaryName, uuid: uuid)
+        cache[key] = hit
+        return hit
+    }
+
+    private func resolve(binaryName: String, uuid: String?) -> String? {
         let fm = FileManager.default
         for root in paths {
             let candidate = URL(fileURLWithPath: root).appendingPathComponent("\(binaryName).dSYM").path
-            if fm.fileExists(atPath: candidate) { return candidate }
-            if root.hasSuffix(".dSYM"), UUIDHolder.uuid(in: root) == uuid { return root }
+            if fm.fileExists(atPath: candidate) {
+                guard let uuid, !uuid.isEmpty else { return candidate }
+                if UUIDHolder.uuid(in: candidate, runner: runner) == uuid { return candidate }
+                continue   // right name, wrong build — keep looking
+            }
+            if root.hasSuffix(".dSYM"), UUIDHolder.uuid(in: root, runner: runner) == uuid { return root }
         }
         return nil
     }
@@ -138,8 +172,7 @@ public final class ChainedLocator: DSymLocating {
 }
 
 enum UUIDHolder {
-    static func uuid(in dsymPath: String) -> String? {
-        let runner = ProcessRunner()
+    static func uuid(in dsymPath: String, runner: ProcessRunning = ProcessRunner()) -> String? {
         let out = runner.run("/usr/bin/dwarfdump", ["--uuid", dsymPath])
         // "UUID: XXXX-... (arm64) ..."
         guard let line = out.split(separator: "\n").first,

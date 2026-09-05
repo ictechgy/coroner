@@ -13,7 +13,7 @@ iOS 프로덕션 텔레메트리(`.ips` + MetricKit)를 로컬에서 수집·심
 
 ```bash
 swift build            # 증분 빌드, 수 초
-swift test             # 36개 XCTest — 실 dSYM·네트워크 없이 전부 로컬. 커밋 전 필수
+swift test             # 39개 XCTest — 실 dSYM·네트워크 없이 전부 로컬. 커밋 전 필수
 swift build -c release
 make demo              # /tmp에서 end-to-end 데모 (ingest → new-since → top)
 ```
