@@ -1,0 +1,811 @@
+{"app_name":"MauiHumanizer","timestamp":"2025-05-23 12:15:17.00 +0200","app_version":"1.0","slice_uuid":"0e6c6f62-c075-323a-9d29-f4b8964389e5","build_version":"1","platform":"2","bundleID":"x.y.z","share_with_app_devs":"1","is_first_party":"0","bug_type":"309","os_version":"iPhone OS 15.8.4 (19H390)","incident_id":"2D5D3C88-49FA-46BE-850B-C0FDED317D65","name":"MauiHumanizer"}
+{
+"uptime": 99000,
+"procLaunch": "2025-05-23 10:57:33.0248 +0200",
+"procRole": "Foreground",
+"version": 2,
+"userID": 501,
+"deployVersion": 210,
+"modelCode": "iPhone9,3",
+"procStartAbsTime": 2283448838567,
+"coalitionID": 611,
+"osVersion": {
+"isEmbedded": true,
+"train": "iPhone OS 15.8.4",
+"releaseType": "User",
+"build": "19H390"
+},
+"captureTime": "2025-05-23 12:15:15.8934 +0200",
+"incident": "2D5D3C88-49FA-46BE-850B-C0FDED317D65",
+"bug_type": "309",
+"pid": 10914,
+"procExitAbsTime": 2395358334249,
+"cpuType": "ARM-64",
+"procName": "MauiHumanizer",
+"procPath": "/private/var/containers/Bundle/Application/69E62A78-3F25-41B9-A2E9-9977EB17F8AB/MauiHumanizer.app/MauiHumanizer",
+"bundleInfo": {
+"CFBundleShortVersionString": "1.0",
+"CFBundleVersion": "1",
+"CFBundleIdentifier": "x.y.z"
+},
+"storeInfo": {
+"deviceIdentifierForVendor": "02DBDBEB-1B12-4ABB-A75E-FA220932F073",
+"thirdParty": true
+},
+"parentProc": "launchd",
+"parentPid": 1,
+"coalitionName": "x.y.z",
+"crashReporterKey": "d950a2b55ff014ddfc015f127bbb73ef1ee086ae",
+"basebandVersion": "6.03.01",
+"vmRegionInfo": "0x1000002 is not in any region.  Bytes before following region: 4281942014\n      REGION TYPE                 START - END      [ VSIZE] PRT/MAX SHRMOD  REGION DETAIL\n      UNUSED SPACE AT START\n--->  \n      __TEXT                   100394000-10211c000 [ 29.5M] r-x/r-x SM=COW  ...MauiHumanizer",
+"isCorpse": 1,
+"exception": {
+"codes": "0x0000000000000001, 0x0000000001000002",
+"rawCodes": [
+1,
+16777218
+],
+"type": "EXC_BAD_ACCESS",
+"signal": "SIGSEGV",
+"subtype": "KERN_INVALID_ADDRESS at 0x0000000001000002"
+},
+"ktriageinfo": "VM - Fault hit memory shortage\nVM - Fault hit memory shortage\nVM - Fault hit memory shortage\nVM - Fault hit memory shortage\nVM - Fault hit memory shortage\n",
+"vmregioninfo": "0x1000002 is not in any region.  Bytes before following region: 4281942014\n      REGION TYPE                 START - END      [ VSIZE] PRT/MAX SHRMOD  REGION DETAIL\n      UNUSED SPACE AT START\n--->  \n      __TEXT                   100394000-10211c000 [ 29.5M] r-x/r-x SM=COW  ...MauiHumanizer",
+"faultingThread": 0,
+"threads": [
+{
+"triggered": true,
+"id": 412532,
+"threadState": {
+"x": [
+{
+"value": 26
+},
+{
+"value": 4401411984
+},
+{
+"value": 3946
+},
+{
+"value": 4506651224
+},
+{
+"value": 18446744073600651392
+},
+{
+"value": 8
+},
+{
+"value": 0
+},
+{
+"value": 0
+},
+{
+"value": 18446744073709027328
+},
+{
+"value": 16777216
+},
+{
+"value": 262144
+},
+{
+"value": 4397727744
+},
+{
+"value": 4505306928
+},
+{
+"value": 4332196000,
+"symbolLocation": 0,
+"symbol": "sgen_nursery_bits"
+},
+{
+"value": 0
+},
+{
+"value": 4
+},
+{
+"value": 7993915424,
+"symbolLocation": 0,
+"symbol": "_platform_memmove"
+},
+{
+"value": 1073741824
+},
+{
+"value": 0
+},
+{
+"value": 170
+},
+{
+"value": 1
+},
+{
+"value": 4505307040
+},
+{
+"value": 16777218
+},
+{
+"value": 15
+},
+{
+"value": 4505490608
+},
+{
+"value": 18446744073709551615
+},
+{
+"value": 0
+},
+{
+"value": 4332196040,
+"symbolLocation": 0,
+"symbol": "sgen_nursery_start"
+},
+{
+"value": 4505490608
+}
+],
+"flavor": "ARM_THREAD_STATE64",
+"lr": {
+"value": 4326862452
+},
+"cpsr": {
+"value": 1073741824
+},
+"fp": {
+"value": 6168134688
+},
+"sp": {
+"value": 6168134512
+},
+"esr": {
+"value": 1442840704,
+"description": " Address size fault"
+},
+"pc": {
+"value": 4326862356,
+"matchesCrashFrame": 1
+},
+"far": {
+"value": 5914121736
+}
+},
+"name": "tid_103",
+"queue": "com.apple.main-thread",
+"frames": [
+{
+"imageOffset": 28143124,
+"symbol": "drain_gray_stack",
+"symbolLocation": 1424,
+"imageIndex": 0
+},
+{
+"imageOffset": 28143220,
+"symbol": "drain_gray_stack",
+"symbolLocation": 1520,
+"imageIndex": 0
+},
+{
+"imageOffset": 28090860,
+"symbol": "finish_gray_stack",
+"symbolLocation": 116,
+"imageIndex": 0
+},
+{
+"imageOffset": 28093684,
+"symbol": "major_finish_collection",
+"symbolLocation": 208,
+"imageIndex": 0
+},
+{
+"imageOffset": 28088992,
+"symbol": "major_do_collection",
+"symbolLocation": 160,
+"imageIndex": 0
+},
+{
+"imageOffset": 28072008,
+"symbol": "sgen_perform_collection",
+"symbolLocation": 904,
+"imageIndex": 0
+},
+{
+"imageOffset": 28071072,
+"symbol": "sgen_ensure_free_space",
+"symbolLocation": 188,
+"imageIndex": 0
+},
+{
+"imageOffset": 28110476,
+"symbol": "sgen_los_alloc_large_inner",
+"symbolLocation": 144,
+"imageIndex": 0
+},
+{
+"imageOffset": 28033224,
+"symbol": "sgen_alloc_obj_nolock",
+"symbolLocation": 120,
+"imageIndex": 0
+},
+{
+"imageOffset": 28979692,
+"symbol": "mono_gc_alloc_vector",
+"symbolLocation": 196,
+"imageIndex": 0
+},
+{
+"imageOffset": 4575912,
+"symbol": "wrapper_managed_to_native_object___icall_wrapper_mono_gc_alloc_vector_intptr_intptr_intptr",
+"symbolLocation": 136,
+"imageIndex": 0
+},
+{
+"imageOffset": 25974292,
+"symbol": "corlib_wrapper_alloc_object_AllocVector_intptr_intptr",
+"symbolLocation": 208,
+"imageIndex": 0
+},
+{
+"imageOffset": 26751264,
+"symbol": "Microsoft_iOS_Foundation_NSObject_InitializeObject_bool",
+"symbolLocation": 384,
+"imageIndex": 0
+},
+{
+"imageOffset": 18766520,
+"symbol": "Microsoft_Maui_Microsoft_Maui_Handlers_ElementHandler_SetVirtualView_Microsoft_Maui_IElement",
+"symbolLocation": 508,
+"imageIndex": 0
+},
+{
+"imageOffset": 15186256,
+"symbol": "Microsoft_Maui_Controls_Microsoft_Maui_Controls_VisualElement_Microsoft_Maui_IElement_set_Handler_Microsoft_Maui_IElementHandler",
+"symbolLocation": 96,
+"imageIndex": 0
+},
+{
+"imageOffset": 18986456,
+"symbol": "Microsoft_Maui_Microsoft_Maui_Handlers_ViewHandler_2_TVirtualView_REF_TPlatformView_REF_SetVirtualView_Microsoft_Maui_IElement",
+"symbolLocation": 136,
+"imageIndex": 0
+},
+{
+"imageOffset": 15186256,
+"symbol": "Microsoft_Maui_Controls_Microsoft_Maui_Controls_VisualElement_Microsoft_Maui_IElement_set_Handler_Microsoft_Maui_IElementHandler",
+"symbolLocation": 96,
+"imageIndex": 0
+},
+{
+"imageOffset": 18766520,
+"symbol": "Microsoft_Maui_Microsoft_Maui_Handlers_ElementHandler_SetVirtualView_Microsoft_Maui_IElement",
+"symbolLocation": 508,
+"imageIndex": 0
+},
+{
+"imageOffset": 15186256,
+"symbol": "Microsoft_Maui_Controls_Microsoft_Maui_Controls_VisualElement_Microsoft_Maui_IElement_set_Handler_Microsoft_Maui_IElementHandler",
+"symbolLocation": 96,
+"imageIndex": 0
+},
+{
+"imageOffset": 18766520,
+"symbol": "Microsoft_Maui_Microsoft_Maui_Handlers_ElementHandler_SetVirtualView_Microsoft_Maui_IElement",
+"symbolLocation": 508,
+"imageIndex": 0
+},
+{
+"imageOffset": 15186256,
+"symbol": "Microsoft_Maui_Controls_Microsoft_Maui_Controls_VisualElement_Microsoft_Maui_IElement_set_Handler_Microsoft_Maui_IElementHandler",
+"symbolLocation": 96,
+"imageIndex": 0
+},
+{
+"imageOffset": 18766520,
+"symbol": "Microsoft_Maui_Microsoft_Maui_Handlers_ElementHandler_SetVirtualView_Microsoft_Maui_IElement",
+"symbolLocation": 508,
+"imageIndex": 0
+},
+{
+"imageOffset": 15186256,
+"symbol": "Microsoft_Maui_Controls_Microsoft_Maui_Controls_VisualElement_Microsoft_Maui_IElement_set_Handler_Microsoft_Maui_IElementHandler",
+"symbolLocation": 96,
+"imageIndex": 0
+},
+{
+"imageOffset": 18986456,
+"symbol": "Microsoft_Maui_Microsoft_Maui_Handlers_ViewHandler_2_TVirtualView_REF_TPlatformView_REF_SetVirtualView_Microsoft_Maui_IElement",
+"symbolLocation": 136,
+"imageIndex": 0
+},
+{
+"imageOffset": 15186256,
+"symbol": "Microsoft_Maui_Controls_Microsoft_Maui_Controls_VisualElement_Microsoft_Maui_IElement_set_Handler_Microsoft_Maui_IElementHandler",
+"symbolLocation": 96,
+"imageIndex": 0
+},
+{
+"imageOffset": 18766520,
+"symbol": "Microsoft_Maui_Microsoft_Maui_Handlers_ElementHandler_SetVirtualView_Microsoft_Maui_IElement",
+"symbolLocation": 508,
+"imageIndex": 0
+},
+{
+"imageOffset": 15186256,
+"symbol": "Microsoft_Maui_Controls_Microsoft_Maui_Controls_VisualElement_Microsoft_Maui_IElement_set_Handler_Microsoft_Maui_IElementHandler",
+"symbolLocation": 96,
+"imageIndex": 0
+},
+{
+"imageOffset": 29564068,
+"symbol": "-[Microsoft_Maui_Controls_Platform_Compatibility_ShellSectionRootRenderer viewDidLoad]",
+"symbolLocation": 40,
+"imageIndex": 0
+},
+{
+"imageOffset": 1682448,
+"symbol": "-[UIViewController _sendViewDidLoadWithAppearanceProxyObjectTaggingEnabled]",
+"symbolLocation": 103,
+"imageIndex": 1
+},
+{
+"imageOffset": 1692808,
+"symbol": "-[UIViewController loadViewIfRequired]",
+"symbolLocation": 1019,
+"imageIndex": 1
+},
+{
+"imageOffset": 2712780,
+"symbol": "-[UINavigationController _updateScrollViewFromViewController:toViewController:]",
+"symbolLocation": 171,
+"imageIndex": 1
+},
+{
+"imageOffset": 2698356,
+"symbol": "-[UINavigationController _startTransition:fromViewController:toViewController:]",
+"symbolLocation": 191,
+"imageIndex": 1
+},
+{
+"imageOffset": 4884256,
+"symbol": "-[UINavigationController _startDeferredTransitionIfNeeded:]",
+"symbolLocation": 863,
+"imageIndex": 1
+},
+{
+"imageOffset": 3708936,
+"symbol": "-[UINavigationController __viewWillLayoutSubviews]",
+"symbolLocation": 163,
+"imageIndex": 1
+},
+{
+"imageOffset": 2856304,
+"symbol": "-[UILayoutContainerView layoutSubviews]",
+"symbolLocation": 223,
+"imageIndex": 1
+},
+{
+"imageOffset": 1556852,
+"symbol": "-[UIView(CALayerDelegate) layoutSublayersOfLayer:]",
+"symbolLocation": 2555,
+"imageIndex": 1
+},
+{
+"imageOffset": 251168,
+"symbol": "CA::Layer::layout_if_needed(CA::Transaction*)",
+"symbolLocation": 527,
+"imageIndex": 2
+},
+{
+"imageOffset": 197268,
+"symbol": "CA::Layer::layout_and_display_if_needed(CA::Transaction*)",
+"symbolLocation": 131,
+"imageIndex": 2
+},
+{
+"imageOffset": 277704,
+"symbol": "CA::Context::commit_transaction(CA::Transaction*, double, double*)",
+"symbolLocation": 463,
+"imageIndex": 2
+},
+{
+"imageOffset": 313244,
+"symbol": "CA::Transaction::commit()",
+"symbolLocation": 707,
+"imageIndex": 2
+},
+{
+"imageOffset": 194984,
+"symbol": "CA::Transaction::flush_as_runloop_observer(bool)",
+"symbolLocation": 83,
+"imageIndex": 2
+},
+{
+"imageOffset": 255852,
+"symbol": "__CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__",
+"symbolLocation": 31,
+"imageIndex": 3
+},
+{
+"imageOffset": 63860,
+"symbol": "__CFRunLoopDoObservers",
+"symbolLocation": 615,
+"imageIndex": 3
+},
+{
+"imageOffset": 44796,
+"symbol": "__CFRunLoopRun",
+"symbolLocation": 1011,
+"imageIndex": 3
+},
+{
+"imageOffset": 123252,
+"symbol": "CFRunLoopRunSpecific",
+"symbolLocation": 571,
+"imageIndex": 3
+},
+{
+"imageOffset": 6536,
+"symbol": "GSEventRunModal",
+"symbolLocation": 159,
+"imageIndex": 4
+},
+{
+"imageOffset": 5134984,
+"symbol": "-[UIApplication _run]",
+"symbolLocation": 1079,
+"imageIndex": 1
+},
+{
+"imageOffset": 2617208,
+"symbol": "UIApplicationMain",
+"symbolLocation": 335,
+"imageIndex": 1
+},
+{
+"imageOffset": 27826472,
+"symbol": "xamarin_UIApplicationMain",
+"symbolLocation": 24,
+"imageIndex": 0
+},
+{
+"imageOffset": 5120928,
+"symbol": "wrapper_managed_to_native_UIKit_UIApplication_xamarin_UIApplicationMain_int_intptr_intptr_intptr_intptr_",
+"symbolLocation": 176,
+"imageIndex": 0
+},
+{
+"imageOffset": 26899976,
+"symbol": "Microsoft_iOS_UIKit_UIApplication_UIApplicationMain_int_string___intptr_intptr",
+"symbolLocation": 212,
+"imageIndex": 0
+},
+{
+"imageOffset": 12507028,
+"symbol": "MauiHumanizer_MauiHumanizer_Program_Main_string__",
+"symbolLocation": 56,
+"imageIndex": 0
+},
+{
+"imageOffset": 29057744,
+"symbol": "mono_jit_runtime_invoke",
+"symbolLocation": 1548,
+"imageIndex": 0
+},
+{
+"imageOffset": 28711672,
+"symbol": "mono_runtime_invoke_checked",
+"symbolLocation": 148,
+"imageIndex": 0
+},
+{
+"imageOffset": 28735532,
+"symbol": "mono_runtime_exec_main_checked",
+"symbolLocation": 116,
+"imageIndex": 0
+},
+{
+"imageOffset": 29084236,
+"symbol": "mono_jit_exec",
+"symbolLocation": 356,
+"imageIndex": 0
+},
+{
+"imageOffset": 27870084,
+"symbol": "xamarin_main",
+"symbolLocation": 948,
+"imageIndex": 0
+},
+{
+"imageOffset": 29518440,
+"symbol": "main",
+"symbolLocation": 64,
+"imageIndex": 0
+},
+{
+"imageOffset": 99536,
+"symbol": "start",
+"symbolLocation": 444,
+"imageIndex": 5
+}
+]
+},
+{
+"id": 412546,
+"name": "SGen worker",
+"frames": [
+{
+"imageOffset": 5252,
+"symbol": "__psynch_cvwait",
+"symbolLocation": 8,
+"imageIndex": 6
+},
+{
+"imageOffset": 39876,
+"symbol": "_pthread_cond_wait$VARIANT$mp",
+"symbolLocation": 1239,
+"imageIndex": 7
+},
+{
+"imageOffset": 28285188,
+"symbol": "thread_func",
+"symbolLocation": 412,
+"imageIndex": 0
+},
+{
+"imageOffset": 13112,
+"symbol": "_pthread_start",
+"symbolLocation": 115,
+"imageIndex": 7
+},
+{
+"imageOffset": 6456,
+"symbol": "thread_start",
+"symbolLocation": 7,
+"imageIndex": 7
+}
+]
+},
+{
+"id": 412552,
+"name": "Finalizer",
+"frames": [
+{
+"imageOffset": 2792,
+"symbol": "semaphore_wait_trap",
+"symbolLocation": 8,
+"imageIndex": 6
+},
+{
+"imageOffset": 28923780,
+"symbol": "finalizer_thread",
+"symbolLocation": 328,
+"imageIndex": 0
+},
+{
+"imageOffset": 28785412,
+"symbol": "start_wrapper",
+"symbolLocation": 348,
+"imageIndex": 0
+},
+{
+"imageOffset": 13112,
+"symbol": "_pthread_start",
+"symbolLocation": 115,
+"imageIndex": 7
+},
+{
+"imageOffset": 6456,
+"symbol": "thread_start",
+"symbolLocation": 7,
+"imageIndex": 7
+}
+]
+},
+{
+"id": 412555,
+"name": "com.apple.uikit.eventfetch-thread",
+"frames": [
+{
+"imageOffset": 2732,
+"symbol": "mach_msg_trap",
+"symbolLocation": 8,
+"imageIndex": 6
+},
+{
+"imageOffset": 4220,
+"symbol": "mach_msg",
+"symbolLocation": 71,
+"imageIndex": 6
+},
+{
+"imageOffset": 27784,
+"symbol": "__CFRunLoopServiceMachPort",
+"symbolLocation": 367,
+"imageIndex": 3
+},
+{
+"imageOffset": 44944,
+"symbol": "__CFRunLoopRun",
+"symbolLocation": 1159,
+"imageIndex": 3
+},
+{
+"imageOffset": 123252,
+"symbol": "CFRunLoopRunSpecific",
+"symbolLocation": 571,
+"imageIndex": 3
+},
+{
+"imageOffset": 97964,
+"symbol": "-[NSRunLoop(NSRunLoop) runMode:beforeDate:]",
+"symbolLocation": 231,
+"imageIndex": 8
+},
+{
+"imageOffset": 356304,
+"symbol": "-[NSRunLoop(NSRunLoop) runUntilDate:]",
+"symbolLocation": 87,
+"imageIndex": 8
+},
+{
+"imageOffset": 4607732,
+"symbol": "-[UIEventFetcher threadMain]",
+"symbolLocation": 511,
+"imageIndex": 1
+},
+{
+"imageOffset": 412636,
+"symbol": "__NSThread__start__",
+"symbolLocation": 791,
+"imageIndex": 8
+},
+{
+"imageOffset": 13112,
+"symbol": "_pthread_start",
+"symbolLocation": 115,
+"imageIndex": 7
+},
+{
+"imageOffset": 6456,
+"symbol": "thread_start",
+"symbolLocation": 7,
+"imageIndex": 7
+}
+]
+},
+{
+"id": 414640,
+"frames": [
+{
+"imageOffset": 6436,
+"symbol": "start_wqthread",
+"symbolLocation": 0,
+"imageIndex": 7
+}
+]
+}
+],
+"usedImages": [
+{
+"source": "P",
+"arch": "arm64",
+"base": 4298719232,
+"size": 30965760,
+"uuid": "0e6c6f62-c075-323a-9d29-f4b8964389e5",
+"path": "/private/var/containers/Bundle/Application/69E62A78-3F25-41B9-A2E9-9977EB17F8AB/MauiHumanizer.app/MauiHumanizer",
+"name": "MauiHumanizer"
+},
+{
+"source": "P",
+"arch": "arm64",
+"base": 6499942400,
+"size": 24756224,
+"uuid": "9d301877-2593-385c-8f72-f075aa0b48fa",
+"path": "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+"name": "UIKitCore"
+},
+{
+"source": "P",
+"arch": "arm64",
+"base": 6524841984,
+"size": 3047424,
+"uuid": "bfb37348-30c8-3723-84e1-7b04acacc5be",
+"path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+"name": "QuartzCore"
+},
+{
+"source": "P",
+"arch": "arm64",
+"base": 6463000576,
+"size": 4448256,
+"uuid": "eec1287d-059b-38c8-9bc1-58a0c8b1e6c2",
+"path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+"name": "CoreFoundation"
+},
+{
+"source": "P",
+"arch": "arm64",
+"base": 7011782656,
+"size": 36864,
+"uuid": "bb434d86-0991-365f-bed3-c3923cf3073c",
+"path": "/System/Library/PrivateFrameworks/GraphicsServices.framework/GraphicsServices",
+"name": "GraphicsServices"
+},
+{
+"source": "P",
+"arch": "arm64",
+"base": 4384587776,
+"size": 344064,
+"uuid": "16c8ea1a-1c77-3f4f-97a6-6ae7fb25eb29",
+"path": "/usr/lib/dyld",
+"name": "dyld"
+},
+{
+"source": "P",
+"arch": "arm64",
+"base": 7445975040,
+"size": 212992,
+"uuid": "102e8613-6676-33f6-a0b4-f6e86a8636ce",
+"path": "/usr/lib/system/libsystem_kernel.dylib",
+"name": "libsystem_kernel.dylib"
+},
+{
+"source": "P",
+"arch": "arm64",
+"base": 7993962496,
+"size": 69632,
+"uuid": "6679a5b3-a40a-37a7-b1c5-565a0f5cb6ab",
+"path": "/usr/lib/system/libsystem_pthread.dylib",
+"name": "libsystem_pthread.dylib"
+},
+{
+"source": "P",
+"arch": "arm64",
+"base": 6487195648,
+"size": 3035136,
+"uuid": "f9235fc7-ec4e-31c9-b56e-95cf10b07239",
+"path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+"name": "Foundation"
+},
+{
+"size": 0,
+"source": "A",
+"base": 0,
+"uuid": "00000000-0000-0000-0000-000000000000"
+}
+],
+"sharedCache": {
+"base": 6459457536,
+"size": 2333982720,
+"uuid": "fec034bf-862c-371f-b0a4-45e75024edaa"
+},
+"vmSummary": "ReadOnly portion of Libraries: Total=776.1M resident=0K(0%) swapped_out_or_unallocated=776.1M(100%)\nWritable regions: Total=581.3M written=0K(0%) resident=0K(0%) swapped_out=0K(0%) unallocated=581.3M(100%)\n\n                                VIRTUAL   REGION \nREGION TYPE                        SIZE    COUNT (non-coalesced) \n===========                     =======  ======= \nActivity Tracing                   256K        1 \nColorSync                           80K        5 \nCoreAnimation                      192K        6 \nFoundation                          16K        1 \nImage IO                           880K        1 \nKernel Alloc Once                   32K        1 \nMALLOC                           554.7M      216 \nMALLOC guard page                  128K        8 \nSTACK GUARD                         80K        5 \nStack                             4720K        5 \nVM_ALLOCATE                       20.9M       43 \n__CTF                               756        1 \n__DATA                            18.6M      544 \n__DATA_CONST                      49.6M      564 \n__DATA_DIRTY                      2055K      467 \n__FONT_DATA                          4K        1 \n__LINKEDIT                       235.6M        4 \n__OBJC_RO                         92.1M        1 \n__OBJC_RW                         3520K        1 \n__TEXT                           540.5M      568 \n__UNICODE                          592K        1 \ndyld private memory               1056K        3 \nmapped file                       50.0M      108 \nshared memory                       48K        3 \n===========                     =======  ======= \nTOTAL                              1.5G     2558 \n",
+"legacyInfo": {
+"threadTriggered": {
+"name": "tid_103",
+"queue": "com.apple.main-thread"
+}
+},
+"trialInfo": {
+"rollouts": [
+{
+"rolloutId": "5fb4245a1bbfe8005e33a1e1",
+"factorPackIds": {},
+"deploymentId": 240000021
+},
+{
+"rolloutId": "60f8ddccefea4203d95cbeef",
+"factorPackIds": {},
+"deploymentId": 240000025
+}
+],
+"experiments": []
+}
+}

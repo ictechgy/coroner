@@ -26,8 +26,11 @@
 방지(`seen.json` 지프린 장부), Store 무음 실패 stderr 경고. 테스트 39개.
 남은 것:
 1. 추가 확보: Xcode Organizer Export, `xcrun devicectl` 기기 수집, 자기 TestFlight 앱,
-   공개 이슈에 붙은 `.ips` 본문(flutter#148927, maui#29641, isar#824 등 전문 첨부 확인됨).
-2. 실제 MetricKit 다양성: iOS 15+ 최신 포맷, hangDuration·cpuException 실측 변형.
+   공개 이슈에 붙은 `.ips` 본문. **2차 완료(2026-09-05)**: flutter#148927(Xcode Translated
+   Report 형태 — 스캔 분할로 수정)·dotnet/maui#29641(.NET MAUI, iOS 15.8) fixture 추가,
+   sentry-cocoa `MetricKitCallstacks` 조각은 단독 페이로드가 아니라 제외. iOS 15+ 최신
+   MetricKit 페이로드와 자기 TestFlight 데이터가 다음 빈칸.
+2. 실제 MetricKit 다양성: iOS 15+ 최신 포맷(아직 iOS 14 샘플뿐), hangDuration·cpuException 실측 변형.
 3. 구식 텍스트 `.crash` 포맷은 현행 미지원 — 지원 여부는 별도 결정 사항.
 4. 파서가 놓치는 변형 발견 → fixture로 잠그고 tolerant 파서 확장. **이것이 v0.3보다 먼저다.**
 5. 리뷰에서 미처 안 고친 P2: 전역 플래그 후행 무시(`ingest . --store X`가 조용히 기본

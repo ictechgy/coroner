@@ -92,6 +92,32 @@ final class CoronerTests: XCTestCase {
         XCTAssertNil(reports[2].exceptionSummary, "cpuException diagnostics carry no exceptionType")
     }
 
+    func testRealIPSXcodeTranslatedExport() throws {
+        // Xcode Organizer exports prepend a human-readable "Translated Report"
+        // with the raw metadata+body JSON appended after it (real file from
+        // flutter/flutter#148927). The split must find the JSON line, not line 0.
+        let reports = try TelemetryParser().parseFile(at: fixture("real/xcode-translated-flutter-241.ips").path)
+        XCTAssertEqual(reports.count, 1)
+        let r = reports[0]
+        XCTAssertEqual(r.buildVersion, "241")
+        XCTAssertEqual(r.appVersion, "2.0.0")
+        XCTAssertTrue(r.exceptionSummary?.contains("EXC_CRASH") ?? false)
+        XCTAssertFalse(r.frames.isEmpty)
+        XCTAssertNotNil(r.timestamp, "'+0800' Apple timestamp must parse")
+    }
+
+    func testRealIPSDotNetMaui() throws {
+        // Real .NET MAUI app crash (dotnet/maui#29641) — different toolchain,
+        // same Apple .ips shape; guards against toolchain-specific assumptions.
+        let reports = try TelemetryParser().parseFile(at: fixture("real/dotnet-maui-241.ips").path)
+        XCTAssertEqual(reports.count, 1)
+        let r = reports[0]
+        XCTAssertEqual(r.osVersion, "iPhone OS 15.8.4 (19H390)")
+        XCTAssertTrue(r.exceptionSummary?.contains("EXC_BAD_ACCESS") ?? false)
+        XCTAssertGreaterThan(r.frames.count, 10)
+        XCTAssertFalse(r.images.isEmpty)
+    }
+
     // MARK: - MetricKit parsing
 
     func testMetricKitJSONLinesAndNestedFlattening() throws {

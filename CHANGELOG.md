@@ -28,6 +28,16 @@
   (기존엔 `try?`로 디스크 문제가 조용히 사라짐)
 - XCTest 36 → 39개
 
+실데이터 검증 2차:
+
+- **Xcode "Translated Report" 내보내기 지원** — Organizer가 사람이 읽는 리포트 앞부분에
+  원본 메타데이터+본문 JSON을 덧붙인 형태(flutter/flutter#148927 첨부 파일로 발견).
+  메타데이터/본문 분할을 "첫 줄"이 아니라 "JSON 객체로 파싱되는 첫 줄" 스캔으로 일반화
+- 실측 fixture 2종 추가 — .NET MAUI 앱 크래시(dotnet/maui#29641, iOS 15.8)로 타
+  툴체인 방어. `Fixtures/real/README.md`에 출처 표 신설, AGENTS.md fixture 규칙 갱신
+  (공개 게시물 첨부 실측 데이터만 허용)
+- XCTest 39 → 41개
+
 ## 0.1.0 — 2026-09-05
 
 첫 릴리스. 기획서(기획서.md) v0.1+v0.2 스코프.

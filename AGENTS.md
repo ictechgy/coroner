@@ -13,7 +13,7 @@ iOS 프로덕션 텔레메트리(`.ips` + MetricKit)를 로컬에서 수집·심
 
 ```bash
 swift build            # 증분 빌드, 수 초
-swift test             # 39개 XCTest — 실 dSYM·네트워크 없이 전부 로컬. 커밋 전 필수
+swift test             # 41개 XCTest — 실 dSYM·네트워크 없이 전부 로컬. 커밋 전 필수
 swift build -c release
 make demo              # /tmp에서 end-to-end 데모 (ingest → new-since → top)
 ```
@@ -52,7 +52,9 @@ Examples/demo/                README 트랜스크립트의 입력 파일
    로드되지 않게 하는 변경은 마이그레이션 코드 없이는 금지.
 5. **MCP 응답은 한 줄 JSON.** 개행 포함 텍스트는 반드시 `content[].text` 내부로.
 6. **프라이버시 기본값.** 출력 경로의 홈 접두사 마스킹 유지. 텔레메트리 원본을
-   절대 커밋하지 않는다(실제 유저 데이터 금지 — fixture는 synthetic만).
+   절대 커밋하지 않는다(비공개 유저 데이터 금지). fixture는 원칙적으로 synthetic;
+   예외적으로 `Fixtures/real/`에는 **공개 게시물에 첨부된** 실측 텔레메트리만
+   허용하며 출처를 `Fixtures/real/README.md` 표에 기록한다.
 7. **`.coroner/`는 런타임 데이터.** gitignore되어 있으니 예제 저널을 커밋하지 말 것.
 
 ## 테스트 관습

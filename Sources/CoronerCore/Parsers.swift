@@ -74,13 +74,22 @@ public struct TelemetryParser {
             return report
         }
         guard let text = String(data: data, encoding: .utf8) else { return nil }
-        // Prefer splitting at the first line: Apple pretty-prints the body JSON and
-        // that output can itself contain blank lines (empty dicts like "x" : {\n\n}),
-        // so a "\n\n" separator scan may cut into the middle of the body.
-        if let firstNL = text.firstIndex(of: "\n"),
-           json(Data(text[..<firstNL].utf8)) != nil,
-           let report = ipsReport(fromBody: Data(text[firstNL...].utf8), metadata: Data(text[..<firstNL].utf8), sourcePath: sourcePath) {
-            return report
+        // The metadata is a single JSON line, but it may not be the first line:
+        // Apple pretty-prints the body JSON (blank lines inside empty dicts break a
+        // "\n\n" scan), and Xcode's "Translated Report" export prepends a human-
+        // readable section with the raw metadata+body appended after it. So scan
+        // for the first line that parses as a JSON object and try splitting there.
+        var lineStart = text.startIndex
+        while lineStart < text.endIndex {
+            let nl = text[lineStart...].firstIndex(of: "\n") ?? text.endIndex
+            let line = text[lineStart..<nl]
+            if line.first == "{", json(Data(line.utf8)) != nil,
+               let report = ipsReport(fromBody: Data(text[nl...].utf8), metadata: Data(line.utf8),
+                                      sourcePath: sourcePath) {
+                return report
+            }
+            if nl == text.endIndex { break }
+            lineStart = text.index(after: nl)
         }
         guard let sep = text.range(of: "\n\n") else { return nil }
         let metadata = Data(String(text[..<sep.lowerBound]).utf8)
