@@ -186,6 +186,72 @@ final class CoronerTests: XCTestCase {
         XCTAssertEqual(b.clusters.count, 1)
     }
 
+    func testFirstSeenBackfillsOnOutOfOrderIngest() {
+        let store = tempStore()
+        ingest(store, "crash-new-143.ips")   // newer build first
+        ingest(store, "crash-new-142.ips")   // older report of the same signature
+        XCTAssertEqual(store.clusters.count, 1)
+        let c = store.clusters.values.first!
+        XCTAssertEqual(c.firstSeenBuild, "142", "older report must backfill first_seen")
+        XCTAssertEqual(c.lastSeenBuild, "143")
+        XCTAssertEqual(c.occurrences, ["142": 1, "143": 1])
+    }
+
+    func testMarkStatus() {
+        let store = tempStore()
+        ingest(store, "crash-new-142.ips")
+        let id = store.clusters.values.first!.id
+        XCTAssertEqual(try! store.setStatus(id: id, status: "known").status, "known")
+        // persisted
+        XCTAssertEqual(try! Store(baseDir: store.baseDir).detail(id: id).status, "known")
+        XCTAssertThrowsError(try store.setStatus(id: id, status: "bogus"))
+    }
+
+    func testWithinPeriodUsesInjectedNow() {
+        let store = tempStore()
+        ingest(store, "crash-old-141.ips")            // last seen 2026-09-01
+        ingest(store, "crash-new-142.ips")            // last seen 2026-09-04
+        let crash142 = store.clusters.values.first { $0.firstSeenBuild == "142" }!
+        let crash141 = store.clusters.values.first { $0.firstSeenBuild == "141" }!
+        let sep4 = crash142.lastSeenAt!.addingTimeInterval(3600)   // 09-04T22:15
+        XCTAssertEqual(store.within(period: .today, now: sep4).map { $0.id }, [crash142.id])
+        XCTAssertEqual(Set(store.within(period: .week, now: sep4).map { $0.id }), [crash142.id, crash141.id])
+        XCTAssertEqual(store.within(period: .all, now: sep4).count, 2)
+        let sep12 = crash142.lastSeenAt!.addingTimeInterval(8 * 24 * 3600)  // 09-12: both stale
+        XCTAssertEqual(store.within(period: .week, now: sep12).count, 0)
+        XCTAssertEqual(store.within(period: .all, now: sep12).count, 2)
+    }
+
+    func testDigestPeriodFiltering() {
+        let store = tempStore()
+        ingest(store, "crash-old-141.ips")
+        ingest(store, "metrickit-hang.json")
+        let hang = store.clusters.values.first { $0.kind == .hang }!
+        let now = hang.lastSeenAt!.addingTimeInterval(3600)
+        let today = Digest.markdown(clusters: store.within(period: .today, now: now), period: .today)
+        XCTAssertTrue(today.contains(hang.id))
+        XCTAssertFalse(today.contains("DemoApp+0x3030"), "the 2026-09-01 cluster is outside 'today'")
+    }
+
+    func testDiscoverySkipsExcludedDirsAndNonTelemetry() throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("coroner-disc-\(UUID().uuidString)", isDirectory: true)
+        let fm = FileManager.default
+        for rel in ["a.ips", "sub/b.json", "notes.txt", ".coroner/reports/x.json", ".build/y.ips", ".git/z.json"] {
+            let f = root.appendingPathComponent(rel)
+            try fm.createDirectory(at: f.deletingLastPathComponent(), withIntermediateDirectories: true)
+            fm.createFile(atPath: f.path, contents: Data("{}".utf8))
+        }
+        let found = FileDiscovery.telemetryFiles([root.path])
+        XCTAssertEqual(found.count, 2, "only a.ips and sub/b.json")
+        XCTAssertTrue(found[0].hasSuffix("a.ips"))
+        XCTAssertTrue(found[1].hasSuffix("sub/b.json"))
+        // single explicit file passes through
+        XCTAssertEqual(FileDiscovery.telemetryFiles([root.appendingPathComponent("a.ips").path]).count, 1)
+        // missing path is skipped, not fatal
+        XCTAssertEqual(FileDiscovery.telemetryFiles(["/no/such/path"]).count, 0)
+    }
+
     // MARK: - Build numbers
 
     func testBuildNumberParsing() {
@@ -295,6 +361,10 @@ final class CoronerTests: XCTestCase {
 
         let unknown = engine.handle(line: #"{"jsonrpc":"2.0","id":5,"method":"bogus"}"#)!
         XCTAssertTrue(unknown.contains("-32601"))
+
+        let unknownTool = engine.handle(line: #"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"nope","arguments":{}}}"#)!
+        XCTAssertTrue(unknownTool.contains("isError"), "tool-level failures must set isError")
+        XCTAssertTrue(unknownTool.contains("unknown tool"))
 
         let malformed = engine.handle(line: "{not json")!
         XCTAssertTrue(malformed.contains("-32700"))

@@ -156,13 +156,15 @@ $ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | coroner mc
 ```
 coroner [--store <dir>] [--dsym <path>...]
   ingest <file|dir>...                       # .ips·MetricKit JSON(단일/JSON Lines) 자동 판별, 재귀 수집
+                                             # (.coroner/.git/.build는 자동 제외)
   list [--kind crash|hang|cpu|disk] [--limit n]
   show <cluster-id>
   new-since <build>
   top [n]
   is-known "<signature substring>"
   hang-report [--period today|week|all]
-  digest [--period today|week|all]
+  digest [--period today|week|all]           # 기간 내 last_seen 클러스터만
+  mark <cluster-id> --status open|known|fixed-in   # 트리아지 판정 기록 (저널 루프 닫기)
   mcp                                        # MCP stdio 서버
 ```
 
@@ -186,7 +188,7 @@ v1.x  스택 유사도 클러스터링 옵션(ReBucket식 / GPTrace식 임베딩
 ## 개발
 
 ```bash
-make test        # swift test — 27 tests
+make test        # swift test — 32 tests
 make release
 ```
 

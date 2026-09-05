@@ -16,6 +16,7 @@ USAGE:
     coroner [--store <dir>] is-known "<signature substring>"
     coroner [--store <dir>] hang-report [--period today|week|all]
     coroner [--store <dir>] digest [--period today|week|all]
+    coroner [--store <dir>] mark <cluster-id> --status open|known|fixed-in
     coroner [--store <dir>] mcp        # MCP server over stdio (6 tools)
 
 OPTIONS:
@@ -77,6 +78,8 @@ case "hang-report":
     hangReport(rest)
 case "digest":
     digest(rest)
+case "mark":
+    mark(rest)
 case "mcp":
     mcp()
 default:
@@ -91,27 +94,7 @@ func ingest(_ args: [String]) {
     let symbolicator = Symbolicator(searchPaths: dsymPaths)
     let store = Store(baseDir: storeBase)
 
-    var files: [String] = []
-    let fm = FileManager.default
-    for p in args {
-        var isDir: ObjCBool = false
-        guard fm.fileExists(atPath: p, isDirectory: &isDir) else {
-            print("skip (not found): \(masked(p))")
-            continue
-        }
-        if isDir.boolValue {
-            if let enumr = fm.enumerator(atPath: p) {
-                while let e = enumr.nextObject() as? String {
-                    if e.hasSuffix(".ips") || e.hasSuffix(".json") {
-                        files.append(URL(fileURLWithPath: p).appendingPathComponent(e).path)
-                    }
-                }
-            }
-        } else {
-            files.append(p)
-        }
-    }
-    files.sort()
+    let files = FileDiscovery.telemetryFiles(args)
 
     var reportCount = 0
     var byKind: [DiagnosticKind: Int] = [:]
@@ -230,11 +213,27 @@ func digest(_ args: [String]) {
         fail("--period must be today|week|all")
     }
     let store = Store(baseDir: storeBase)
+    let hits = store.within(period: period)
     do {
-        let url = try Digest.write(clusters: store.all(), period: period, baseDir: storeBase)
-        print("digest written: \(masked(url.path))")
+        let url = try Digest.write(clusters: hits, period: period, baseDir: storeBase)
+        print("digest written: \(masked(url.path)) (\(hits.count) cluster(s) in period \(period.rawValue))")
     } catch {
         fail("digest failed: \(error)")
+    }
+}
+
+func mark(_ args: [String]) {
+    guard let id = args.first(where: { !$0.hasPrefix("--") }) else {
+        fail("mark needs a cluster id (see: coroner list)")
+    }
+    let status = flagValues(args, flags: ["--status"])["--status"] ?? ""
+    guard !status.isEmpty else { fail("mark needs --status open|known|fixed-in") }
+    let store = Store(baseDir: storeBase)
+    do {
+        let c = try store.setStatus(id: id, status: status)
+        print("\(c.id) → status: \(c.status)")
+    } catch {
+        fail("\(error)")
     }
 }
 

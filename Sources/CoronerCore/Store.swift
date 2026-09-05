@@ -2,10 +2,12 @@ import Foundation
 
 public enum StoreError: Error, CustomStringConvertible {
     case notFound(String)
+    case invalidStatus(String)
 
     public var description: String {
         switch self {
         case .notFound(let id): return "no post-mortem record with id \(id)"
+        case .invalidStatus(let s): return "invalid status '\(s)' — allowed: open|known|fixed-in"
         }
     }
 }
@@ -70,6 +72,13 @@ public final class Store {
                 existing.lastSeenBuild = build
             }
             existing.lastSeenAt = max(existing.lastSeenAt ?? date, date)
+            // Out-of-order ingest: an older report backfills first_seen (기획서: first_seen은 시간상 최초).
+            if report.timestamp != nil, report.timestamp! < (existing.firstSeenAt ?? report.timestamp!) {
+                existing.firstSeenAt = report.timestamp
+                if !BuildNumber.isNewer(build, than: existing.firstSeenBuild) {
+                    existing.firstSeenBuild = build
+                }
+            }
             if let d = report.deviceModel { existing.devices[d, default: 0] += 1 }
             if let o = report.osVersion { existing.osVersions[o, default: 0] += 1 }
             existing.symbolicated = existing.symbolicated || symbolicated
@@ -130,6 +139,19 @@ public final class Store {
         return c
     }
 
+    /// Journal loop: humans/agents promote clusters to `known` (or back) once triaged.
+    @discardableResult
+    public func setStatus(id: String, status: String) throws -> ClusterReport {
+        let allowed = ["open", "known", "fixed-in"]
+        guard allowed.contains(status) else {
+            throw StoreError.invalidStatus(status)
+        }
+        var c = try detail(id: id)
+        c.status = status
+        save(c)
+        return c
+    }
+
     public enum Period: String {
         case today, week, all
 
@@ -142,14 +164,18 @@ public final class Store {
         }
     }
 
-    public func hangReport(period: Period, now: Date = Date()) -> [ClusterReport] {
-        let hangClusters = clusters.values.filter { $0.kind == .hang }
-        guard let window = period.seconds else { return hangClusters.sorted { $0.totalOccurrences > $1.totalOccurrences } }
-        return hangClusters
+    /// Clusters last seen within the period window (used by hang-report and period digests).
+    public func within(period: Period, now: Date = Date()) -> [ClusterReport] {
+        guard let window = period.seconds else { return all() }
+        return clusters.values
             .filter { c in
                 guard let last = c.lastSeenAt else { return false }
                 return now.timeIntervalSince(last) <= window
             }
             .sorted { $0.totalOccurrences > $1.totalOccurrences }
+    }
+
+    public func hangReport(period: Period, now: Date = Date()) -> [ClusterReport] {
+        within(period: period, now: now).filter { $0.kind == .hang }
     }
 }

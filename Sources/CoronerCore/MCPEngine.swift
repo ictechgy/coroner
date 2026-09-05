@@ -5,7 +5,7 @@ import Foundation
 /// unknown method → -32601, malformed JSON → -32700, EOF → clean exit.
 public struct MCPEngine {
 
-    public typealias ToolCall = (_ name: String, _ arguments: [String: Any]) -> String
+    public typealias ToolCall = (_ name: String, _ arguments: [String: Any]) -> (text: String, isError: Bool)
 
     public let serverName: String
     public let serverVersion: String
@@ -55,10 +55,14 @@ public struct MCPEngine {
             let params = obj["params"] as? [String: Any] ?? [:]
             let name = params["name"] as? String ?? ""
             let args = params["arguments"] as? [String: Any] ?? [:]
-            let text = handleTool(name, args)
+            let out = handleTool(name, args)
+            var result: [String: Any] = ["content": [["type": "text", "text": out.text]]]
+            if out.isError {
+                result["isError"] = true
+            }
             return Self.json([
                 "jsonrpc": "2.0", "id": id,
-                "result": ["content": [["type": "text", "text": text]]],
+                "result": result,
             ])
         default:
             guard hasID else { return nil }
@@ -138,41 +142,43 @@ public enum CoronerMCP {
             func arg(_ key: String) -> String? { args[key] as? String }
             func intArg(_ key: String) -> Int? { (args[key] as? NSNumber)?.intValue }
             let kind = arg("kind").flatMap { DiagnosticKind.parse($0) }
+            func ok(_ text: String) -> (text: String, isError: Bool) { (text, false) }
+            func err(_ text: String) -> (text: String, isError: Bool) { (text, true) }
 
             switch name {
             case "new_since":
                 guard let build = arg("build") else {
-                    return "error: `build` is required (baseline build number)"
+                    return err("error: `build` is required (baseline build number)")
                 }
                 let hits = store.newSince(build: build, kind: kind)
-                return hits.isEmpty
+                return ok(hits.isEmpty
                     ? "No new post-mortem records after build \(build)."
-                    : Renderer.list(hits)
+                    : Renderer.list(hits))
             case "top_crashes":
                 let n = intArg("n") ?? 10
                 let hits = Array(store.all(kind: kind).prefix(n))
-                return hits.isEmpty ? "Journal is empty — ingest telemetry first." : Renderer.list(hits)
+                return ok(hits.isEmpty ? "Journal is empty — ingest telemetry first." : Renderer.list(hits))
             case "crash_detail":
-                guard let id = arg("id") else { return "error: `id` is required" }
-                guard let c = try? store.detail(id: id) else { return "no record with id \(id)" }
-                return Renderer.detail(c)
+                guard let id = arg("id") else { return err("error: `id` is required") }
+                guard let c = try? store.detail(id: id) else { return err("no record with id \(id)") }
+                return ok(Renderer.detail(c))
             case "is_known":
-                guard let sig = arg("signature") else { return "error: `signature` is required" }
+                guard let sig = arg("signature") else { return err("error: `signature` is required") }
                 let hits = store.isKnown(signatureSubstring: sig)
-                return hits.isEmpty
+                return ok(hits.isEmpty
                     ? "UNKNOWN — no cluster matches \"\(sig)\". Treat as a new failure."
-                    : "KNOWN — \(hits.count) matching cluster(s):\n" + Renderer.list(hits)
+                    : "KNOWN — \(hits.count) matching cluster(s):\n" + Renderer.list(hits))
             case "hang_report":
                 let period = arg("period").flatMap(Store.Period.init(rawValue:)) ?? .all
                 let hits = store.hangReport(period: period)
-                return hits.isEmpty
+                return ok(hits.isEmpty
                     ? "No hang diagnostics in period \(period.rawValue)."
-                    : Renderer.list(hits)
+                    : Renderer.list(hits))
             case "digest":
                 let period = arg("period").flatMap(Store.Period.init(rawValue:)) ?? .all
-                return Digest.markdown(clusters: store.all(), period: period)
+                return ok(Digest.markdown(clusters: store.within(period: period), period: period))
             default:
-                return "unknown tool: \(name)"
+                return err("unknown tool: \(name)")
             }
         }
     }

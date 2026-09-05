@@ -87,18 +87,26 @@ public protocol DSymLocating {
 }
 
 /// Spotlight-based lookup: `mdfind 'com_apple_xcode_dsym_uuids == <UUID>'`.
+/// Misses are memoized per UUID — ingest of many reports must not re-run mdfind for the same binary.
 public final class SpotlightLocator: DSymLocating {
     private let runner: ProcessRunning
+    private var cache: [String: String?] = [:]
     public init(runner: ProcessRunning = ProcessRunner()) { self.runner = runner }
 
     public func locate(binaryName: String, uuid: String?) -> String? {
         guard let uuid, !uuid.isEmpty else { return nil }
+        if let cached = cache[uuid] { return cached }
         let output = runner.run("/usr/bin/mdfind", ["com_apple_xcode_dsym_uuids == \(uuid)"])
+        var hit: String?
         for line in output.split(separator: "\n") {
             let p = String(line)
-            if FileManager.default.fileExists(atPath: p) { return p }
+            if FileManager.default.fileExists(atPath: p) {
+                hit = p
+                break
+            }
         }
-        return nil
+        cache[uuid] = hit
+        return hit
     }
 }
 
@@ -157,7 +165,9 @@ public struct ProcessRunner: ProcessRunning {
         p.arguments = args
         let pipe = Pipe()
         p.standardOutput = pipe
-        p.standardError = Pipe()
+        // Never pipe stderr without draining it — a chatty child would fill the
+        // 64KB pipe buffer and deadlock the read of stdout.
+        p.standardError = FileHandle.nullDevice
         do {
             try p.run()
         } catch {
